@@ -1,0 +1,104 @@
+
+> ai-crime-investigation-system@1.0.0 dev
+> node scripts/dev.js
+
+[36m[backend][0m > backend@1.0.0 dev
+[36m[backend][0m > nodemon server.js
+[35m[frontend][0m > ai-crime-investigation-frontend@0.0.1 dev
+[35m[frontend][0m > vite --host 0.0.0.0
+[36m[backend][0m [33m[nodemon] 3.1.14[39m
+[36m[backend][0m [33m[nodemon] to restart at any time, enter `rs`[39m
+[36m[backend][0m [33m[nodemon] watching path(s): *.*[39m
+[36m[backend][0m [33m[nodemon] watching extensions: js,mjs,cjs,json[39m
+[36m[backend][0m [32m[nodemon] starting `node server.js`[39m
+[36m[backend][0m ◇ injected env (2) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+[35m[frontend][0m   [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m522[22m[2m[0m ms[22m
+[35m[frontend][0m   [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
+[35m[frontend][0m   [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.132.250:[1m5173[22m/[39m
+[36m[backend][0m Server running
+[36m[backend][0m Invalid scheme, expected connection string to start with "mongodb://" or "mongodb+srv://"
+[36m[backend][0m [31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[36m[backend][0m [32m[nodemon] restarting due to changes...[39m
+[36m[backend][0m [32m[nodemon] starting `node server.js`[39m
+[36m[backend][0m [32m[nodemon] restarting due to changes...[39m
+[36m[backend][0m ◇ injected env (2) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+[36m[backend][0m Server running
+[36m[backend][0m D:\AI Based Crime Investigation System using MERN Stack with Groq AI\backend\config\db.js:10
+[36m[backend][0m         throw new Error('Please set a valid MONGO_URI in backend/.env')
+[36m[backend][0m               ^
+[36m[backend][0m Error: Please set a valid MONGO_URI in backend/.env
+[36m[backend][0m     at connectDB (D:\AI Based Crime Investigation System using MERN Stack with Groq AI\backend\config\db.js:10:15)
+[36m[backend][0m     at Object.<anonymous> (D:\AI Based Crime Investigation System using MERN Stack with Groq AI\backend\server.js:17:1)
+[36m[backend][0m     at Module._compile (node:internal/modules/cjs/loader:1761:14)
+[36m[backend][0m     at Object..js (node:internal/modules/cjs/loader:1893:10)
+[36m[backend][0m     at Module.load (node:internal/modules/cjs/loader:1481:32)
+[36m[backend][0m     at Module._load (node:internal/modules/cjs/loader:1300:12)
+[36m[backend][0m     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+[36m[backend][0m     at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+[36m[backend][0m     at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+[36m[backend][0m     at node:internal/main/run_main_module:33:47
+[36m[backend][0m Node.js v24.13.0
+[36m[backend][0m [32m[nodemon] starting `node server.js`[39m
+[36m[backend][0m ◇ injected env (2) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+[36m[backend][0m Database connection failed: Please set a valid MONGO_URI in backend/.env
+[36m[backend][0m Fix backend/.env, then run: npm run dev
+[36m[backend][0m [31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[36m[backend][0m [32m[nodemon] restarting due to changes...[39m
+[36m[backend][0m [32m[nodemon] starting `node server.js`[39m
+[36m[backend][0m ◇ injected env (2) from .env // tip: ⌘ override existing { override: true }
+[36m[backend][0m Database connection failed: Please set a valid MONGO_URI in backend/.env
+[36m[backend][0m Fix backend/.env, then run: npm run dev
+[36m[backend][0m [31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[36m[backend][0m [32m[nodemon] restarting due to changes...[39m
+[36m[backend][0m [32m[nodemon] starting `node server.js`[39m
+[36m[backend][0m [32m[nodemon] restarting due to changes...[39m
+[36m[backend][0m [32m[nodemon] restarting due to changes...[39m
+[36m[backend][0m [32m[nodemon] restarting due to changes...[39m
+[36m[backend][0m [32m[nodemon] restarting due to changes...[39m
+[36m[backend][0m [32m[nodemon] restarting due to changes...[39m
+[36m[backend][0m [32m[nodemon] restarting due to changes...[39m
+[36m[backend][0m [32m[nodemon] restarting due to changes...[39m
+[36m[backend][0m ◇ injected env (2) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+[36m[backend][0m [32m[nodemon] restarting due to changes...[39m
+[36m[backend][0m [32m[nodemon] restarting due to changes...[39m
+[36m[backend][0m [32m[nodemon] restarting due to changes...[39m
+[36m[backend][0m [32m[nodemon] restarting due to changes...[39m
+[36m[backend][0m [32m[nodemon] restarting due to changes...[39m
+[36m[backend][0m [32m[nodemon] restarting due to changes...[39m
+[36m[backend][0m Database connection failed: Please set a valid MONGO_URI in backend/.env
+[36m[backend][0m Fix backend/.env, then run: npm run dev
+[36m[backend][0m [32m[nodemon] starting `node server.js`[39m
+[36m[backend][0m ◇ injected env (2) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+[36m[backend][0m Database connection failed: Please set a valid MONGO_URI in backend/.env
+[36m[backend][0m Fix backend/.env, then run: npm run dev
+[36m[backend][0m [31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[36m[backend][0m [32m[nodemon] restarting due to changes...[39m
+[36m[backend][0m [32m[nodemon] starting `node server.js`[39m
+[36m[backend][0m ◇ injected env (2) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+[36m[backend][0m MongoDB Connected
+[36m[backend][0m Server running on http://localhost:5000
+[36m[backend][0m [32m[nodemon] restarting due to changes...[39m
+[36m[backend][0m [32m[nodemon] restarting due to changes...[39m
+[36m[backend][0m [32m[nodemon] restarting due to changes...[39m
+[36m[backend][0m [32m[nodemon] restarting due to changes...[39m
+[35m[frontend][0m [2m12:24:05 pm[22m [36m[1m[vite][22m[39m [32m.env changed, restarting server...[39m
+[35m[frontend][0m Re-optimizing dependencies because lockfile has changed
+[35m[frontend][0m [2m12:24:05 pm[22m [36m[1m[vite][22m[39m server restarted.
+[35m[frontend][0m [2m12:27:21 pm[22m [36m[1m[vite][22m[39m [32m.env changed, restarting server...[39m
+[35m[frontend][0m [2m12:27:21 pm[22m [36m[1m[vite][22m[39m server restarted.
+[36m[backend][0m [32m[nodemon] restarting due to changes...[39m
+[36m[backend][0m [32m[nodemon] restarting due to changes...[39m
+[36m[backend][0m [32m[nodemon] restarting due to changes...[39m
+[36m[backend][0m [32m[nodemon] restarting due to changes...[39m
+[36m[backend][0m [32m[nodemon] restarting due to changes...[39m
+[36m[backend][0m [32m[nodemon] restarting due to changes...[39m
+[35m[frontend][0m [2m12:43:05 pm[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/main.jsx[22m
+[35m[frontend][0m [2m12:43:05 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx[22m
+[35m[frontend][0m [2m12:43:19 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Login.jsx[22m
+[35m[frontend][0m [2m12:43:19 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Register.jsx[22m
+[35m[frontend][0m [2m12:43:19 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/Sidebar.jsx[22m
+[35m[frontend][0m [2m12:43:19 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/FIRCard.jsx[22m
+[35m[frontend][0m [2m12:43:41 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/FIRList.jsx[22m
+[35m[frontend][0m [2m12:43:41 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css[22m
+[35m[frontend][0m [2m12:49:08 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/context/AuthContext.jsx[22m
+[35m[frontend][0m [2m12:49:08 pm[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx[22m

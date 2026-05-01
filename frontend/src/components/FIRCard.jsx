@@ -1,0 +1,53 @@
+// This file shows one FIR record as a card. It displays the FIR details and the edit or delete buttons based on the user role.
+// This part shows one FIR record as a card in the FIR list
+function FIRCard({ fir, onEdit, onDelete, role }) {
+    // This line returns the card layout with record details and role based actions
+    return (
+        // Main container for one FIR item
+        <article className="fir-card">
+            {/* This header contains the FIR title and status badge */}
+            <div className="fir-card-header">
+                {/* This is the left side of the card header */}
+                <div>
+                    {/* This is the small label for the card type */}
+                    <p className="eyebrow">FIR Record</p>
+                    {/* This part shows the FIR title */}
+                    <h3>{fir.title}</h3>
+                </div>
+                {/* This part shows the current FIR status and status based styling */}
+                <span className={`badge badge-${fir.status || 'pending'}`}>
+                    {/* Uses pending when the status is missing */}
+                    {fir.status || 'pending'}
+                </span>
+            </div>
+
+            {/* This part shows the FIR description */}
+            <p className="fir-description">{fir.description}</p>
+
+            {/* This part shows the incident location area */}
+            <div className="fir-meta">
+                {/* This labels the location value */}
+                <span>Location</span>
+                {/* This shows the stored location */}
+                <strong>{fir.location}</strong>
+            </div>
+
+            {/* Contains buttons that change based on user role */}
+            <div className="card-actions">
+                {/* This part allows police and admins to edit the FIR status */}
+                {['police', 'admin'].includes(role) && (
+                    <button className="btn btn-secondary" onClick={() => onEdit(fir)}>Edit Status</button>
+                )}
+                {/* This part allows only admins to delete the FIR */}
+                {role === 'admin' && (
+                    <button className="btn btn-danger" onClick={() => onDelete(fir._id)}>Delete</button>
+                )}
+            </div>
+        </article>
+    )
+}
+
+// This line makes the FIR card component
+export default FIRCard
+
+
