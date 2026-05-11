@@ -39,6 +39,27 @@ const firSchema = new mongoose.Schema({
         default: 'pending'
     },
 
+    // This part keeps every FIR status change
+    statusHistory: [
+        {
+            // This line stores the status value
+            status: {
+                type: String,
+                enum: ['pending', 'investigating', 'closed']
+            },
+            // This line stores who changed the status
+            changedBy: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'User'
+            },
+            // This line stores when the status changed
+            changedAt: {
+                type: Date,
+                default: Date.now
+            }
+        }
+    ],
+
     // This part keeps the police officer or admin who created the FIR
     createdBy: {
         // This line saves the MongoDB id of the creator
@@ -62,4 +83,3 @@ const firSchema = new mongoose.Schema({
 
 // This part creates and exports the FIR model
 module.exports = mongoose.model('FIR', firSchema)
-

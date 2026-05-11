@@ -59,14 +59,24 @@ exports.updateComplaint = async (req, res) => {
             return res.status(404).json({ message: 'Complaint not found' }) // return not found when missing
         }
 
-        if (req.user.role === 'user' && complaint.createdBy.toString() !== req.user.id) {
-            return res.status(403).json({ message: 'Access denied' }) // block updates from other regular users
+        const isOwner = req.user.role === 'user' && complaint.createdBy.toString() === req.user.id // This line checks normal user ownership
+        const isStaff = ['police', 'admin'].includes(req.user.role) // This line checks staff roles
+
+        if (!isOwner && !isStaff) {
+            return res.status(403).json({ message: 'Access denied' }) // This line blocks users who do not own the complaint
         }
 
-        const allowedUpdates = ['title', 'description', 'location', 'status', 'assignedTo'] // fields that may be changed
+        if (isOwner && complaint.firCreated) {
+            return res.status(400).json({ message: 'Complaint can not be edited after FIR is created' }) // This line blocks user edits after FIR
+        }
+
+        const allowedUpdates = isOwner
+            ? ['title', 'description', 'location'] // This line lets users edit only basic complaint details
+            : ['title', 'description', 'location', 'status', 'assignedTo'] // This line lets staff update review details
+
         allowedUpdates.forEach((field) => {
             if (req.body[field] !== undefined) {
-                complaint[field] = req.body[field] // apply each allowed update
+                complaint[field] = req.body[field] // This line applies one allowed update value
             }
         })
 
@@ -86,11 +96,18 @@ exports.deleteComplaint = async (req, res) => {
             return res.status(404).json({ message: 'Complaint not found' }) // return not found when missing
         }
 
-        if (req.user.role === 'user' && complaint.createdBy.toString() !== req.user.id) {
-            return res.status(403).json({ message: 'Access denied' }) // block deletion from other regular users
+        const isOwner = req.user.role === 'user' && complaint.createdBy.toString() === req.user.id // This line checks normal user ownership
+        const isAdmin = req.user.role === 'admin' // This line checks admin role
+
+        if (!isOwner && !isAdmin) {
+            return res.status(403).json({ message: 'Access denied' }) // This line blocks police and other users from delete
         }
 
-        await complaint.remove() // remove the complaint document
+        if (isOwner && complaint.firCreated) {
+            return res.status(400).json({ message: 'Complaint can not be deleted after FIR is created' }) // This line blocks user delete after FIR
+        }
+
+        await complaint.deleteOne() // This line removes the complaint document
         res.json({ message: 'Complaint deleted' }) // confirm deletion to client
     } catch (error) {
         res.status(500).json({ error: error.message }) // return server error if delete fails

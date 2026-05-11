@@ -7,6 +7,8 @@ const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 // This line imports Google OAuth client for checking Google login credentials
 const { OAuth2Client } = require('google-auth-library')
+// This line imports QR code maker for authenticator app setup
+const QRCode = require('qrcode')
 
 // This line tries to import speakeasy for OTP support but allows backend to work without it
 let speakeasy
@@ -43,11 +45,62 @@ const createTwoFactorToken = (user) => {
     )
 }
 
+// This part builds the secret link and QR image for Google Authenticator
+const buildTwoFactorSetupData = async (user) => {
+    // This line creates the special authenticator app link
+    const otpauthUrl = speakeasy.otpauthURL({
+        secret: user.twoFactorSecret,
+        label: `CrimeInvestigation:${user.email}`,
+        issuer: 'CrimeInvestigation',
+        encoding: 'base32'
+    })
+
+    // This line changes the authenticator link into a QR image
+    const qrCodeDataUrl = await QRCode.toDataURL(otpauthUrl)
+
+    // This line sends the secret, link, and QR image to the frontend
+    return {
+        secret: user.twoFactorSecret,
+        otpauthUrl,
+        qrCodeDataUrl
+    }
+}
+
+// This part keeps only safe user data for the frontend
+const getSafeUserData = (user) => {
+    // This line returns user details without password or OTP secret
+    return {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        twoFactorEnabled: user.twoFactorEnabled
+    }
+}
+
+// This part reads the OTP code and keeps only numbers
+const cleanOtpCode = (code) => {
+    // This line removes spaces and letters from the OTP code
+    return (code || '').toString().replace(/\D/g, '')
+}
+
+// This part checks one OTP code against one saved secret
+const isOtpCodeValid = (secret, code) => {
+    // This line gives a little time room for phone and computer clock difference
+    return speakeasy.totp.verify({
+        secret,
+        encoding: 'base32',
+        token: code,
+        window: 4
+    })
+}
+
 // Registers a new user account and prepares OTP secret for mandatory 2FA
 exports.registerUser = async (req, res) => {
 
     // This line reads registration fields from the request body
-    const { name, email, password, role } = req.body
+    const { name, email, password } = req.body // This line reads public signup fields
+    const selectedRole = 'user' // This line keeps public signup as normal user only
 
     // This part handles registration errors with a clean API response
     try {
@@ -55,18 +108,18 @@ exports.registerUser = async (req, res) => {
         // This line checks whether an account already exists with the same email
         let user = await User.findOne({ email })
 
-        // This step stops registration when the email is already used
-        if (user) {
-            return res.status(400).json({ message: 'User exists' })
-        }
-
         // This part creates a salt used for secure password hashing
         const salt = await bcrypt.genSalt(10)
 
         // Hashes the plain password before storing it
         const hashedPassword = await bcrypt.hash(password, salt)
 
-        // This part creates the user document with validated role selection
+        // This part stops signup when the email is already used
+        if (user) {
+            return res.status(400).json({ message: 'User exists' }) // This line blocks duplicate signup
+        }
+
+        // This part creates the user document with normal user role
         user = new User({
             // This part keeps the user's display name
             name,
@@ -74,8 +127,8 @@ exports.registerUser = async (req, res) => {
             email,
             // This part keeps only the hashed password
             password: hashedPassword,
-            // This check allows known roles and falls back to user for anything else
-            role: ['admin', 'police', 'user'].includes(role) ? role : 'user'
+            // This line saves selected role when the role is valid
+            role: selectedRole
         })
 
         // If OTP support is available, generate a secret now for mandatory 2FA
@@ -128,28 +181,21 @@ exports.loginUser = async (req, res) => {
             await user.save()
         }
 
-        // If the user has not completed 2FA yet, require OTP verification
-        if (!user.twoFactorEnabled) {
+        // If the user has an OTP secret, ask for OTP before login is complete
+        if (speakeasy && user.twoFactorSecret) {
             // Create a short lived token that proves password was valid
             const tempToken = createTwoFactorToken(user)
 
-            // Build setup data only when OTP is active
+            // Build the OTP response for the frontend
             const responseData = {
                 twoFactorRequired: true,
                 tempToken,
                 message: 'Enter OTP to complete login'
             }
 
-            if (speakeasy && user.twoFactorSecret) {
-                responseData.setupData = {
-                    secret: user.twoFactorSecret,
-                    otpauthUrl: speakeasy.otpauthURL({
-                        secret: user.twoFactorSecret,
-                        label: `CrimeInvestigation:${user.email}`,
-                        issuer: 'CrimeInvestigation',
-                        encoding: 'base32'
-                    })
-                }
+            // Send the QR code only when the user is setting up OTP for the first time
+            if (!user.twoFactorEnabled) {
+                responseData.setupData = await buildTwoFactorSetupData(user)
             }
 
             return res.json(responseData)
@@ -163,16 +209,7 @@ exports.loginUser = async (req, res) => {
             // This line gives the frontend the token used for protected routes
             token,
             // This part sends profile data without exposing the password
-            user: {
-                // This part sends the user database id
-                id: user._id,
-                // This part sends the user's name
-                name: user.name,
-                // This part sends the user's email
-                email: user.email,
-                // This part sends the user's role for access control
-                role: user.role
-            }
+            user: getSafeUserData(user)
         })
 
     } catch (error) {
@@ -189,8 +226,13 @@ exports.verifyTwoFactorLogin = async (req, res) => {
         return res.status(500).json({ message: 'Two factor authentication is not configured' })
     }
 
-    // This line reads the OTP code from the request body
-    const { code } = req.body
+    // This line reads the OTP code from the request body and trims extra spaces
+    const code = cleanOtpCode(req.body.code)
+
+    // This check rejects wrong length OTP codes before checking the secret
+    if (code.length !== 6) {
+        return res.status(400).json({ message: 'Enter a valid 6 digit OTP code' })
+    }
 
     // This line reads the temporary 2FA token from the Authorization header
     const tempToken = req.header('Authorization')
@@ -218,16 +260,14 @@ exports.verifyTwoFactorLogin = async (req, res) => {
         }
 
         // Verifies the submitted OTP code using the stored secret
-        const verified = speakeasy.totp.verify({
-            secret: user.twoFactorSecret,
-            encoding: 'base32',
-            token: code,
-            window: 1
-        })
+        const verified = isOtpCodeValid(user.twoFactorSecret, code)
 
         // This check rejects invalid or expired OTP codes
         if (!verified) {
-            return res.status(400).json({ message: 'Invalid OTP code' })
+            return res.status(400).json({
+                message: 'Invalid OTP code',
+                setupData: await buildTwoFactorSetupData(user)
+            })
         }
 
         // Enable two factor authentication permanently after successful first OTP
@@ -242,12 +282,7 @@ exports.verifyTwoFactorLogin = async (req, res) => {
         // This part sends the token and safe user details to the frontend
         res.json({
             token,
-            user: {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-                role: user.role
-            }
+            user: getSafeUserData(user)
         })
 
     } catch (error) {
@@ -288,10 +323,14 @@ exports.setupTwoFactor = async (req, res) => {
         user.twoFactorSecret = secret.base32
         await user.save()
 
-        // This part sends the secret and QR code URL to the frontend
+        // This part prepares the setup data for the frontend
+        const setupData = await buildTwoFactorSetupData(user)
+
+        // This part sends the secret, link, and QR image to the frontend
         res.json({
-            secret: secret.base32,
-            otpauthUrl: secret.otpauth_url,
+            secret: setupData.secret,
+            otpauthUrl: setupData.otpauthUrl,
+            qrCodeDataUrl: setupData.qrCodeDataUrl,
             message: 'Use this secret in your authenticator app and verify with the code'
         })
 
@@ -310,8 +349,13 @@ exports.verifyTwoFactor = async (req, res) => {
     }
 
     // This line reads the OTP code from the request body
-    const { code } = req.body
+    const code = cleanOtpCode(req.body.code)
     const userId = req.user.id
+
+    // This check rejects wrong length OTP codes before checking the secret
+    if (code.length !== 6) {
+        return res.status(400).json({ message: 'Enter a valid 6 digit OTP code' })
+    }
 
     try {
         // This line finds the current user record
@@ -328,12 +372,7 @@ exports.verifyTwoFactor = async (req, res) => {
         }
 
         // Verifies the submitted OTP code using the stored secret
-        const verified = speakeasy.totp.verify({
-            secret: user.twoFactorSecret,
-            encoding: 'base32',
-            token: code,
-            window: 1
-        })
+        const verified = isOtpCodeValid(user.twoFactorSecret, code)
 
         // This check rejects invalid OTP codes
         if (!verified) {
@@ -362,8 +401,13 @@ exports.disableTwoFactor = async (req, res) => {
     }
 
     // This line reads the OTP code from the request body
-    const { code } = req.body
+    const code = cleanOtpCode(req.body.code)
     const userId = req.user.id
+
+    // This check rejects wrong length OTP codes before checking the secret
+    if (code.length !== 6) {
+        return res.status(400).json({ message: 'Enter a valid 6 digit OTP code' })
+    }
 
     try {
         // This line finds the current user record
@@ -380,12 +424,7 @@ exports.disableTwoFactor = async (req, res) => {
         }
 
         // Verifies the submitted OTP code using the stored secret
-        const verified = speakeasy.totp.verify({
-            secret: user.twoFactorSecret,
-            encoding: 'base32',
-            token: code,
-            window: 1
-        })
+        const verified = isOtpCodeValid(user.twoFactorSecret, code)
 
         // This check rejects invalid OTP codes
         if (!verified) {
@@ -470,8 +509,8 @@ exports.googleLogin = async (req, res) => {
             await user.save()
         }
 
-        // If the user has not completed 2FA yet, require OTP verification
-        if (!user.twoFactorEnabled) {
+        // If the user has an OTP secret, ask for OTP before login is complete
+        if (speakeasy && user.twoFactorSecret) {
             const tempToken = createTwoFactorToken(user)
             const responseData = {
                 twoFactorRequired: true,
@@ -479,16 +518,9 @@ exports.googleLogin = async (req, res) => {
                 message: 'Enter OTP to complete login'
             }
 
-            if (speakeasy && user.twoFactorSecret) {
-                responseData.setupData = {
-                    secret: user.twoFactorSecret,
-                    otpauthUrl: speakeasy.otpauthURL({
-                        secret: user.twoFactorSecret,
-                        label: `CrimeInvestigation:${user.email}`,
-                        issuer: 'CrimeInvestigation',
-                        encoding: 'base32'
-                    })
-                }
+            // Send the QR code only when the user is setting up OTP for the first time
+            if (!user.twoFactorEnabled) {
+                responseData.setupData = await buildTwoFactorSetupData(user)
             }
 
             return res.json(responseData)
@@ -502,16 +534,7 @@ exports.googleLogin = async (req, res) => {
             // This line gives the frontend the token used for protected requests
             token,
             // This part sends profile data without exposing the password
-            user: {
-                // This part sends the user database id
-                id: user._id,
-                // This part sends the user name
-                name: user.name,
-                // This part sends the user email
-                email: user.email,
-                // This part sends the user role
-                role: user.role
-            }
+            user: getSafeUserData(user)
         })
 
     } catch (error) {
@@ -529,4 +552,3 @@ exports.getAllUsers = async (req, res) => {
         res.status(500).json({ error: error.message })
     }
 }
-

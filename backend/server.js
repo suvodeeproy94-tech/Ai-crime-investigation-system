@@ -49,6 +49,14 @@ app.use('/api/suspects', require('./routes/suspectRoutes'))
 app.use('/api/evidence', require('./routes/evidenceRoutes'))
 // This line connects notification routes under api notifications
 app.use('/api/notifications', require('./routes/notificationRoutes'))
+// This line connects report routes under api reports
+app.use('/api/reports', require('./routes/reportRoutes'))
+// This line connects chat routes under api chat
+app.use('/api/chat', require('./routes/chatRoutes'))
+// This line connects meeting routes under api meetings
+app.use('/api/meetings', require('./routes/meetingRoutes'))
+// This line connects ai log routes under api ai logs
+app.use('/api/ai-logs', require('./routes/aiLogRoutes'))
 
 // This line reads the server port from environment settings or uses 5000 by default
 const PORT = process.env.PORT || 5000
@@ -72,4 +80,3 @@ connectDB()
         // This step stops the backend process because it cannot work without the database
         process.exit(1)
     })
-

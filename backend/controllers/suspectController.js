@@ -1,89 +1,126 @@
-// this controller manages suspect records allowing create read update and delete operations
-const Suspect = require('../models/Suspect') // import the Suspect model
+// This file handles suspect profile records
+// This file supports create read update delete search and case links
+const Suspect = require('../models/Suspect') // This line imports the Suspect model
+const Case = require('../models/Case') // This line imports the Case model
 
-// createSuspect saves a new suspect record with creator information
-exports.createSuspect = async (req, res) => {
-    const suspect = new Suspect({ ...req.body, createdBy: req.user.id }) // build the suspect document with request fields and owner id
+// This helper changes one value or many values into a clean list
+const getIdList = (value) => {
+    if (!value) return [] // This line returns an empty list when no value is sent
+    if (Array.isArray(value)) return value.filter(Boolean) // This line keeps only filled values from an array
+    return value.toString().split(',').map((item) => item.trim()).filter(Boolean) // This line builds a list from comma text
+}
 
-    try {
-        const savedSuspect = await suspect.save() // save the suspect in the database
-        res.json(savedSuspect) // return the saved suspect
-    } catch (error) {
-        res.status(500).json({ error: error.message }) // return server error if creation fails
+// This helper keeps case suspect links correct
+const syncSuspectCaseLinks = async (suspectId, relatedCases) => {
+    await Case.updateMany({ suspects: suspectId }, { $pull: { suspects: suspectId } }) // This line removes old case links
+
+    if (relatedCases.length > 0) {
+        await Case.updateMany({ _id: { $in: relatedCases } }, { $addToSet: { suspects: suspectId } }) // This line adds new case links
     }
 }
 
-// getAllSuspects returns all suspects with related case and creator details
+// This part creates a new suspect profile
+exports.createSuspect = async (req, res) => {
+    try {
+        const relatedCases = getIdList(req.body.relatedCases) // This line reads selected case ids
+        const suspect = new Suspect({ ...req.body, relatedCases, createdBy: req.user.id }) // This line builds the suspect record
+        const savedSuspect = await suspect.save() // This line saves the suspect in the database
+
+        await syncSuspectCaseLinks(savedSuspect._id, relatedCases) // This line connects the suspect with cases
+
+        res.json(savedSuspect) // This line sends the saved suspect
+    } catch (error) {
+        res.status(500).json({ error: error.message }) // This line sends server error when creation fails
+    }
+}
+
+// This part returns suspects with search and filters
 exports.getAllSuspects = async (req, res) => {
     try {
-        const suspects = await Suspect.find() // find all suspect documents
-            .populate('relatedCases', 'title status') // attach related case summaries
-            .populate('createdBy', 'name email role') // attach creator user info
+        const { q, status, gender, caseId, sortBy, sortOrder } = req.query // This line reads filter values
+        const filter = {} // This line prepares database filter object
 
-        res.json(suspects) // return the suspect list
+        if (status) filter.status = status // This line filters suspects by status
+        if (gender) filter.gender = gender // This line filters suspects by gender
+        if (caseId) filter.relatedCases = caseId // This line filters suspects by case
+
+        if (q) {
+            filter.$or = [
+                { name: { $regex: q, $options: 'i' } }, // This line searches suspect name
+                { lastSeenLocation: { $regex: q, $options: 'i' } } // This line searches last seen location
+            ]
+        }
+
+        const sortField = ['createdAt', 'name', 'status', 'age'].includes(sortBy) ? sortBy : 'createdAt' // This line keeps sorting safe
+        const sortDirection = sortOrder === 'asc' ? 1 : -1 // This line sets sort direction
+
+        const suspects = await Suspect.find(filter) // This line loads matching suspects
+            .populate('relatedCases', 'title status') // This line adds related case data
+            .populate('createdBy', 'name email role') // This line adds creator user data
+            .sort({ [sortField]: sortDirection }) // This line sorts the list
+
+        res.json(suspects) // This line sends the suspect list
     } catch (error) {
-        res.status(500).json({ error: error.message }) // return server error if query fails
+        res.status(500).json({ error: error.message }) // This line sends server error when loading fails
     }
 }
 
-// getSuspectById returns one suspect record by id
+// This part returns one suspect profile
 exports.getSuspectById = async (req, res) => {
     try {
-        const suspect = await Suspect.findById(req.params.id) // find suspect by id
-            .populate('relatedCases', 'title status') // attach related case summaries
-            .populate('createdBy', 'name email role') // attach creator user info
+        const suspect = await Suspect.findById(req.params.id) // This line finds suspect by id
+            .populate('relatedCases', 'title status') // This line adds related case data
+            .populate('createdBy', 'name email role') // This line adds creator user data
 
         if (!suspect) {
-            return res.status(404).json({ message: 'Suspect not found' }) // return not found when missing
+            return res.status(404).json({ message: 'Suspect not found' }) // This line handles missing suspect
         }
 
-        res.json(suspect) // return the suspect document
+        res.json(suspect) // This line sends the suspect record
     } catch (error) {
-        res.status(500).json({ error: error.message }) // return server error if lookup fails
+        res.status(500).json({ error: error.message }) // This line sends server error when lookup fails
     }
 }
 
-// updateSuspect edits allowed suspect fields only
+// This part updates one suspect profile
 exports.updateSuspect = async (req, res) => {
-    const updates = {
-        name: req.body.name, // new name when provided
-        age: req.body.age, // new age when provided
-        gender: req.body.gender, // new gender when provided
-        lastSeenLocation: req.body.lastSeenLocation, // new last seen location when provided
-        status: req.body.status, // new suspect status when provided
-        relatedCases: req.body.relatedCases // new related case ids when provided
-    }
-
-    Object.keys(updates).forEach((key) => {
-        if (updates[key] === undefined) {
-            delete updates[key] // remove undefined fields so they do not overwrite existing values
-        }
-    })
-
     try {
-        const updatedSuspect = await Suspect.findByIdAndUpdate(req.params.id, updates, { new: true }) // update and return the new suspect
+        const suspect = await Suspect.findById(req.params.id) // This line finds suspect before update
 
-        if (!updatedSuspect) {
-            return res.status(404).json({ message: 'Suspect not found' }) // return not found when no suspect exists
+        if (!suspect) {
+            return res.status(404).json({ message: 'Suspect not found' }) // This line handles missing suspect
         }
 
-        res.json(updatedSuspect) // return the updated suspect
+        if (req.body.name !== undefined) suspect.name = req.body.name // This line updates name
+        if (req.body.age !== undefined) suspect.age = req.body.age // This line updates age
+        if (req.body.gender !== undefined) suspect.gender = req.body.gender // This line updates gender
+        if (req.body.lastSeenLocation !== undefined) suspect.lastSeenLocation = req.body.lastSeenLocation // This line updates location
+        if (req.body.status !== undefined) suspect.status = req.body.status // This line updates status
+        if (req.body.relatedCases !== undefined) suspect.relatedCases = getIdList(req.body.relatedCases) // This line updates case links
+
+        const updatedSuspect = await suspect.save() // This line saves changes
+        await syncSuspectCaseLinks(updatedSuspect._id, updatedSuspect.relatedCases.map(String)) // This line refreshes case links
+
+        res.json(updatedSuspect) // This line sends updated suspect
     } catch (error) {
-        res.status(500).json({ error: error.message }) // return server error if update fails
+        res.status(500).json({ error: error.message }) // This line sends server error when update fails
     }
 }
 
-// deleteSuspect removes one suspect record by id
+// This part deletes one suspect profile
 exports.deleteSuspect = async (req, res) => {
     try {
-        const removedSuspect = await Suspect.findByIdAndDelete(req.params.id) // delete suspect by id
+        const suspect = await Suspect.findById(req.params.id) // This line finds suspect before delete
 
-        if (!removedSuspect) {
-            return res.status(404).json({ message: 'Suspect not found' }) // return not found when no suspect exists
+        if (!suspect) {
+            return res.status(404).json({ message: 'Suspect not found' }) // This line handles missing suspect
         }
 
-        res.json({ message: 'Suspect deleted' }) // confirm deletion to client
+        await Case.updateMany({ suspects: suspect._id }, { $pull: { suspects: suspect._id } }) // This line removes suspect from cases
+        await suspect.deleteOne() // This line deletes suspect record
+
+        res.json({ message: 'Suspect deleted' }) // This line confirms delete
     } catch (error) {
-        res.status(500).json({ error: error.message }) // return server error if delete fails
+        res.status(500).json({ error: error.message }) // This line sends server error when delete fails
     }
 }

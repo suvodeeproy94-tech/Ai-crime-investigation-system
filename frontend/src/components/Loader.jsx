@@ -4,9 +4,12 @@ function Loader() {
 
     // This line returns the visible loading text
     return (
-        // This part shows the loading message in the center with the existing classes
-        <div className="text-center p-4">
-            Loading...
+        // This part shows the loading logo and text in the center
+        <div className="loader-box">
+            {/* This line shows the loading logo */}
+            <img className="loader-logo" src="/logos/loading-logo.png" alt="" />
+            {/* This line shows the loading message */}
+            <span>Loading investigation data...</span>
         </div>
     )
 }

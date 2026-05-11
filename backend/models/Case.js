@@ -23,6 +23,26 @@ const caseSchema = new mongoose.Schema({
         enum: ['open', 'under_review', 'closed'],
         default: 'open'
     },
+    // This part keeps every case status change
+    statusHistory: [
+        {
+            // This line stores the status value
+            status: {
+                type: String,
+                enum: ['open', 'under_review', 'closed']
+            },
+            // This line stores who changed the status
+            changedBy: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'User'
+            },
+            // This line stores when the status changed
+            changedAt: {
+                type: Date,
+                default: Date.now
+            }
+        }
+    ],
     // This part keeps the case priority
     priority: {
         type: String,

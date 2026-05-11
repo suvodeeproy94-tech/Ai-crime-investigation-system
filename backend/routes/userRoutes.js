@@ -6,8 +6,8 @@ const router = express.Router()
 
 // This line imports controller functions that handle user account requests
 const { registerUser, loginUser, googleLogin, getAllUsers, setupTwoFactor, verifyTwoFactor, verifyTwoFactorLogin, disableTwoFactor } = require('../controllers/userController')
-const auth = require('../middleware/authMiddleware')
-const authorize = require('../middleware/roleMiddleware')
+const auth = require('../middleware/authMiddleware') // This line imports auth middleware
+const authorize = require('../middleware/roleMiddleware') // This line imports role middleware
 
 // This part handles normal account registration
 router.post('/register', registerUser)
@@ -28,4 +28,3 @@ router.get('/', auth, authorize('admin'), getAllUsers)
 
 // This line makes the router so server.js can mount it
 module.exports = router
-

@@ -14,8 +14,8 @@ exports.createEvidence = async (req, res) => {
     try {
         const { title, description, caseId, suspectId, status } = req.body // read evidence fields from the request
 
-        if (!title || !caseId) {
-            return res.status(400).json({ message: 'Title and caseId are required' }) // validate required fields
+        if (!title || !caseId || !req.file) {
+            return res.status(400).json({ message: 'Title case and evidence file are required' }) // validate required fields
         }
 
         const caseItem = await Case.findById(caseId) // load the related case by id
@@ -65,12 +65,18 @@ exports.createEvidence = async (req, res) => {
 
 exports.getAllEvidence = async (req, res) => {
     try {
-        const { caseId, status, suspectId } = req.query // read optional filters from query string
+        const { caseId, status, suspectId, q, sortBy, sortOrder } = req.query // read optional filters from query string
         const filter = {} // prepare filter object
 
         if (caseId) filter.caseId = caseId // filter by case id when provided
         if (status) filter.status = status // filter by evidence status when provided
         if (suspectId) filter.suspectId = suspectId // filter by suspect id when provided
+        if (q) {
+            filter.$or = [
+                { title: { $regex: q, $options: 'i' } }, // search evidence title
+                { description: { $regex: q, $options: 'i' } } // search evidence description
+            ]
+        }
 
         if (req.user.role === 'user') {
             const cases = await Case.find({ filedBy: req.user.id }).select('_id') // find cases belonging to the user
@@ -78,10 +84,14 @@ exports.getAllEvidence = async (req, res) => {
             filter.caseId = { $in: caseIds } // restrict evidence to those case ids
         }
 
+        const sortField = ['createdAt', 'title', 'status'].includes(sortBy) ? sortBy : 'createdAt' // keep sort field safe
+        const sortDirection = sortOrder === 'asc' ? 1 : -1 // set sort direction
+
         const evidence = await Evidence.find(filter) // load evidence documents
-            .populate('caseId', 'title status') // attach related case info
+            .populate('caseId', 'title status filedBy') // attach related case info
             .populate('suspectId', 'name status') // attach related suspect info
             .populate('uploadedBy', 'name email role') // attach uploader info
+            .sort({ [sortField]: sortDirection }) // sort evidence list
 
         res.json(evidence) // return the evidence list
     } catch (error) {
@@ -92,7 +102,7 @@ exports.getAllEvidence = async (req, res) => {
 exports.getEvidenceById = async (req, res) => {
     try {
         const evidence = await Evidence.findById(req.params.id) // find evidence by id
-            .populate('caseId', 'title status') // attach case info
+            .populate('caseId', 'title status filedBy') // attach case info
             .populate('suspectId', 'name status') // attach suspect info
             .populate('uploadedBy', 'name email role') // attach uploader info
 
@@ -125,13 +135,36 @@ exports.updateEvidence = async (req, res) => {
         if (req.body.title !== undefined) updates.title = req.body.title // update title
         if (req.body.description !== undefined) updates.description = req.body.description // update description
         if (req.body.status !== undefined) updates.status = req.body.status // update status
+        if (req.body.caseId !== undefined) updates.caseId = req.body.caseId // update case link
+        if (req.body.suspectId !== undefined) updates.suspectId = req.body.suspectId || undefined // update suspect link
+
+        if (updates.caseId) {
+            const caseItem = await Case.findById(updates.caseId) // check updated case id
+            if (!caseItem) {
+                return res.status(404).json({ message: 'Case not found' }) // return not found when case is missing
+            }
+        }
+
+        if (updates.suspectId) {
+            const suspect = await Suspect.findById(updates.suspectId) // check updated suspect id
+            if (!suspect) {
+                return res.status(404).json({ message: 'Suspect not found' }) // return not found when suspect is missing
+            }
+        }
 
         if (req.file) {
             updates.fileUrl = getFileUrl(req, req.file.filename) // update file URL when new file is uploaded
         }
 
+        const oldCaseId = evidence.caseId // remember old case link
         Object.assign(evidence, updates) // merge changes into the evidence document
         const updatedEvidence = await evidence.save() // save the updated evidence
+
+        if (updates.caseId && String(oldCaseId) !== String(updates.caseId)) {
+            await Case.findByIdAndUpdate(oldCaseId, { $pull: { evidence: updatedEvidence._id } }) // remove evidence from old case
+            await Case.findByIdAndUpdate(updates.caseId, { $addToSet: { evidence: updatedEvidence._id } }) // add evidence to new case
+        }
+
         res.json(updatedEvidence) // return the saved evidence
     } catch (error) {
         res.status(500).json({ error: error.message }) // return server error if update fails
@@ -149,7 +182,8 @@ exports.deleteEvidence = async (req, res) => {
             return res.status(403).json({ message: 'Only the uploader may delete this evidence' }) // enforce uploader ownership for police
         }
 
-        await evidence.remove() // delete the evidence document
+        await Case.findByIdAndUpdate(evidence.caseId, { $pull: { evidence: evidence._id } }) // remove evidence from case
+        await evidence.deleteOne() // delete the evidence document
         res.json({ message: 'Evidence deleted' }) // confirm deletion to client
     } catch (error) {
         res.status(500).json({ error: error.message }) // return server error if delete fails

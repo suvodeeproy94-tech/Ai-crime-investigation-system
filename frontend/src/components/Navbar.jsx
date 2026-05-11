@@ -1,6 +1,12 @@
 // This file shows the top bar on dashboard pages. It displays the page title and the online status.
+// This line imports theme hook so this component can read and update dark mode
+import { useTheme } from '../context/ThemeContext'
+
 // This part shows the top bar used on protected pages
 function Navbar({ title = 'Dashboard' }) {
+    // This line reads current theme value and toggle function from theme context
+    const { theme, toggleTheme } = useTheme()
+
     // This line returns the heading area and online status
     return (
         // Main top navigation bar
@@ -12,11 +18,19 @@ function Navbar({ title = 'Dashboard' }) {
                 {/* This part shows the current page title */}
                 <h1>{title}</h1>
             </div>
-            {/* This is the right side shows a simple online status */}
-            <div className="status-pill">
-                {/* This is the small green indicator dot */}
-                <span className="status-dot"></span>
-                Online
+            {/* This is the right side area for theme button and online status */}
+            <div className="topbar-actions">
+                {/* This button switches between light mode and dark mode */}
+                <button className="btn btn-secondary theme-btn" onClick={toggleTheme}>
+                    {/* This text changes based on current selected theme */}
+                    {theme === 'dark' ? 'Use Light Mode' : 'Use Dark Mode'}
+                </button>
+                {/* This is the right side shows a simple online status */}
+                <div className="status-pill">
+                    {/* This is the small green indicator dot */}
+                    <span className="status-dot"></span>
+                    Online
+                </div>
             </div>
         </header>
     )

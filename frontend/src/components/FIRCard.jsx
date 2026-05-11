@@ -32,6 +32,19 @@ function FIRCard({ fir, onEdit, onDelete, role }) {
                 <strong>{fir.location}</strong>
             </div>
 
+            {/* This part shows FIR status history when available */}
+            {fir.statusHistory?.length > 0 && (
+                <div className="status-history">
+                    {/* This labels the history block */}
+                    <span>Status History</span>
+                    {fir.statusHistory.map((historyItem) => (
+                        <p key={historyItem._id || `${historyItem.status}-${historyItem.changedAt}`}>
+                            {historyItem.status} on {new Date(historyItem.changedAt).toLocaleString()}
+                        </p>
+                    ))}
+                </div>
+            )}
+
             {/* Contains buttons that change based on user role */}
             <div className="card-actions">
                 {/* This part allows police and admins to edit the FIR status */}

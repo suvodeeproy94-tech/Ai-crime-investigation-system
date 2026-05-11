@@ -14,8 +14,9 @@ API.interceptors.request.use((req) => {
     // This line reads the token stored after login
     const token = localStorage.getItem('token')
 
-    // This line adds the token header only when a token exists
-    if (token) {
+    // Only add the saved token when the request did not already provide an Authorization header
+    // This allows OTP verification requests to send the temp token without being replaced
+    if (token && !req.headers.Authorization) {
         req.headers.Authorization = token
     }
 

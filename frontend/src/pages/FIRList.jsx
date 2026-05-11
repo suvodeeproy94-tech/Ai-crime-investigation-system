@@ -2,11 +2,16 @@
 // This line imports hooks for fetching data after render and storing component state
 import { useEffect, useState } from 'react'
 // This line imports the shared API client for backend requests
-import API from '../services/api'
+import API from '../services/apiClient'
 // This line imports the card component used for each FIR
 import FIRCard from '../components/FIRCard'
+// This line imports the shared loading logo component
+import Loader from '../components/Loader'
 // This line imports auth data so the list can pass the current role to cards
 import useAuth from '../hooks/useAuth'
+
+// This list keeps valid FIR status values in one place
+const allowedFIRStatuses = ['pending', 'investigating', 'closed'] // This line stores allowed FIR statuses
 
 // This part shows the list of FIR records available to the logged in user
 function FIRList() {
@@ -55,6 +60,11 @@ function FIRList() {
         // This step stops when the user cancels or submits an empty value
         if (!status) {
             return
+        }
+
+        if (!allowedFIRStatuses.includes(status)) {
+            alert('Use only pending investigating or closed status') // This line shows simple status error
+            return // This line stops wrong status update
         }
 
         // This part sends the updated status to the backend
@@ -108,7 +118,7 @@ function FIRList() {
             </div>
 
             {/* This part shows a loading message during the first request */}
-            {loading && <div className="empty-state">Loading FIR records...</div>}
+            {loading && <div className="empty-state"><Loader /></div>}
 
             {/* This part shows an empty state when the request finished and no FIRs exist */}
             {!loading && firs.length === 0 && (

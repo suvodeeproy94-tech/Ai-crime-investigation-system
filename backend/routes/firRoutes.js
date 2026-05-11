@@ -27,9 +27,8 @@ router.post('/', auth, authorize('police', 'admin'), createFIR)
 router.get('/', auth, getAllFIR)
 // This check allows police and admins to update FIR records with ownership rules in the controller
 router.put('/:id', auth, authorize('police', 'admin'), updateFIR)
-// This check allows police and admins to delete FIR records with ownership rules in the controller
-router.delete('/:id', auth, authorize('police', 'admin'), deleteFIR)
+// This check allows only admin to delete FIR records
+router.delete('/:id', auth, authorize('admin'), deleteFIR)
 
 // This line makes the router so server.js can mount it
 module.exports = router
-

@@ -1,9 +1,10 @@
-// this controller manages FIR actions and links FIR records to complaints and notifications
-const FIR = require('../models/FIR') // import the FIR model
-const Complaint = require('../models/Complaint') // import the Complaint model
-const Notification = require('../models/Notification') // import the Notification model
+// This file handles FIR operations in the backend.
+// This file links FIR records with complaints and notifications.
+const FIR = require('../models/FIR') // This line imports the FIR model.
+const Complaint = require('../models/Complaint') // This line imports the Complaint model.
+const Notification = require('../models/Notification') // This line imports the Notification model.
 
-// createFIR builds a new FIR from a complaint and saves it in the database
+// This part creates a new FIR from a complaint.
 exports.createFIR = async (req, res) => {
     try {
         const { complaintId, title, description, location, status } = req.body // read FIR fields from the request body
@@ -27,6 +28,7 @@ exports.createFIR = async (req, res) => {
             description: description || complaint.description, // use provided description or fallback to complaint description
             location: location || complaint.location, // use provided location or fallback to complaint location
             status: status || 'pending', // default FIR status is pending
+            statusHistory: [{ status: status || 'pending', changedBy: req.user.id }], // store first FIR status
             createdBy: req.user.id, // record the creator user id
             complaint: complaint._id // link to the original complaint
         })
@@ -44,10 +46,11 @@ exports.createFIR = async (req, res) => {
     }
 }
 
-// getAllFIR returns FIR records that the current user is allowed to access
+// This part returns FIR records that the current user can access.
 exports.getAllFIR = async (req, res) => {
     try {
         let query = {} // default query for admin users
+        const andConditions = [] // This list stores extra filter conditions from query params.
 
         if (req.user.role === 'user') {
             const complaints = await Complaint.find({ createdBy: req.user.id }).select('_id') // find complaints owned by this user
@@ -57,9 +60,49 @@ exports.getAllFIR = async (req, res) => {
             query = { createdBy: req.user.id } // police see FIRs they created
         }
 
-        const firs = await FIR.find(query) // load FIRs matching the query
+        // This part reads optional search and filter inputs from query string.
+        const { status, q, location, fromDate, toDate, sortBy, sortOrder } = req.query // read all optional filter params
+
+        // This part filters FIRs by status when status is supplied.
+        if (status) {
+            andConditions.push({ status }) // add status filter condition
+        }
+
+        // This part filters FIRs by location text when location filter is supplied.
+        if (location) {
+            andConditions.push({ location: { $regex: location, $options: 'i' } }) // case insensitive location match
+        }
+
+        // This part supports free text search across title, description, and location.
+        if (q) {
+            andConditions.push({
+                $or: [
+                    { title: { $regex: q, $options: 'i' } }, // search in FIR title
+                    { description: { $regex: q, $options: 'i' } }, // search in FIR description
+                    { location: { $regex: q, $options: 'i' } } // search in FIR location
+                ]
+            })
+        }
+
+        // This part builds a date range filter for createdAt when any date range input is provided.
+        if (fromDate || toDate) {
+            const createdAt = {} // start empty date object
+            if (fromDate) createdAt.$gte = new Date(fromDate) // apply lower date boundary
+            if (toDate) createdAt.$lte = new Date(toDate) // apply upper date boundary
+            andConditions.push({ createdAt }) // add date filter to condition list
+        }
+
+        // This part combines role-based base query with optional filters.
+        const finalQuery = andConditions.length > 0 ? { $and: [query, ...andConditions] } : query // merge conditions only when needed
+
+        // This part builds safe sort configuration with simple fallback defaults.
+        const sortField = ['createdAt', 'status', 'title'].includes(sortBy) ? sortBy : 'createdAt' // allow only known sortable fields
+        const sortDirection = sortOrder === 'asc' ? 1 : -1 // keep descending as default
+
+        const firs = await FIR.find(finalQuery) // load FIRs matching role and search filters
             .populate('createdBy', 'name email role') // attach creator details
             .populate('complaint', 'title status createdBy assignedTo') // attach complaint info
+            .sort({ [sortField]: sortDirection }) // apply selected sorting
 
         res.json(firs) // return the FIR list to the client
     } catch (error) {
@@ -67,7 +110,7 @@ exports.getAllFIR = async (req, res) => {
     }
 }
 
-// updateFIR applies allowed field changes and creates a notification when the FIR status changes
+// This part updates allowed FIR fields and creates a notification when status changes.
 exports.updateFIR = async (req, res) => {
     try {
         const fir = await FIR.findById(req.params.id) // find the FIR by id
@@ -88,6 +131,11 @@ exports.updateFIR = async (req, res) => {
 
         const originalStatus = fir.status // remember the current status
         Object.assign(fir, allowedUpdates) // apply the allowed updates to the FIR document
+
+        if (allowedUpdates.status && allowedUpdates.status !== originalStatus) {
+            fir.statusHistory.push({ status: allowedUpdates.status, changedBy: req.user.id }) // store the new status in history
+        }
+
         const updated = await fir.save() // save the updated FIR record
 
         if (allowedUpdates.status && allowedUpdates.status !== originalStatus) {
@@ -108,7 +156,7 @@ exports.updateFIR = async (req, res) => {
     }
 }
 
-// deleteFIR removes one FIR and resets the linked complaint if necessary
+// This part deletes one FIR and resets the linked complaint if needed.
 exports.deleteFIR = async (req, res) => {
     try {
         const fir = await FIR.findById(req.params.id) // find the FIR by id
@@ -128,10 +176,9 @@ exports.deleteFIR = async (req, res) => {
             await complaint.save() // save the complaint updates
         }
 
-        await fir.remove() // delete the FIR document
+        await fir.deleteOne() // delete the FIR document
         res.json({ message: 'Deleted' }) // confirm successful deletion
     } catch (error) {
         res.status(500).json({ error: error.message }) // return server error on failure
     }
 }
-

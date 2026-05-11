@@ -1,16 +1,16 @@
 // This file defines complaint routes and connects them to controller actions.
-const express = require('express')
-const router = express.Router()
+const express = require('express') // This line imports express for route creation
+const router = express.Router() // This line creates complaint router
 
-const auth = require('../middleware/authMiddleware')
-const authorize = require('../middleware/roleMiddleware')
+const auth = require('../middleware/authMiddleware') // This line imports auth middleware
+const authorize = require('../middleware/roleMiddleware') // This line imports role middleware
 const {
     createComplaint,
     getAllComplaints,
     getComplaintById,
     updateComplaint,
     deleteComplaint
-} = require('../controllers/complaintController')
+} = require('../controllers/complaintController') // This line imports complaint controller functions
 
 // Users and admins may file a complaint
 router.post('/', auth, authorize('user', 'admin'), createComplaint)
@@ -23,4 +23,4 @@ router.put('/:id', auth, updateComplaint)
 // Delete complaint if user owns it or if admin
 router.delete('/:id', auth, deleteComplaint)
 
-module.exports = router
+module.exports = router // This line exports complaint routes

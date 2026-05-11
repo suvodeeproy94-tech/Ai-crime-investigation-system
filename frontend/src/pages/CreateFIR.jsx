@@ -2,7 +2,7 @@
 // This line imports useState for managing form input
 import { useState } from 'react'
 // This line imports the shared API client for backend requests
-import API from '../services/api'
+import API from '../services/apiClient'
 // This line imports the shared top bar
 import Navbar from '../components/Navbar'
 // This line imports the shared sidebar navigation

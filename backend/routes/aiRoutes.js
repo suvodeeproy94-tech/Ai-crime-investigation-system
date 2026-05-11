@@ -1,17 +1,14 @@
-// This file defines AI routes. It connects the AI analyze URL to login checking and the AI controller.
-// This line imports express to create a route group
-const express = require('express')
-// This part creates a router for AI related endpoints
-const router = express.Router()
+// This file defines AI routes.
+// It protects the AI analyze URL and connects it to the controller.
 
-// This line imports authentication middleware to protect AI routes
-const auth = require('../middleware/authMiddleware')
-// This line imports the AI analysis controller function
-const { analyzeText } = require('../controllers/aiController')
+const express = require('express') // This line imports express for route creation
+const router = express.Router() // This line creates ai router
 
-// This part handles POST requests that send text for AI analysis
+const auth = require('../middleware/authMiddleware') // This line imports auth middleware
+const { analyzeText } = require('../controllers/aiController') // This line imports ai controller function
+
+// This route receives case notes and returns an AI analysis.
 router.post('/analyze', auth, analyzeText)
 
-// This line makes the router so server.js can mount it
-module.exports = router
+module.exports = router // This line exports ai routes
 

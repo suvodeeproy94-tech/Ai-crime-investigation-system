@@ -1,41 +1,87 @@
-// this file defines evidence routes and connects them to the evidence controller logic
-const express = require('express') // import express to build routes
-const multer = require('multer') // import multer to handle file uploads
-const path = require('path') // import path to build upload directory paths
-const auth = require('../middleware/authMiddleware') // import auth middleware for protected routes
-const authorize = require('../middleware/roleMiddleware') // import role middleware for access control
+// This file defines evidence API routes and connects them to evidence controller functions.
+// This line imports express to build route endpoints.
+const express = require('express')
+// This line imports multer to handle file upload data.
+const multer = require('multer')
+// This line imports path to build safe upload folder paths.
+const path = require('path')
+// This line imports auth middleware for protected routes.
+const auth = require('../middleware/authMiddleware')
+// This line imports role middleware for role based access checks.
+const authorize = require('../middleware/roleMiddleware')
 const {
+    // This line handles creating new evidence.
     createEvidence,
+    // This line handles reading evidence list.
     getAllEvidence,
+    // This line handles reading one evidence item.
     getEvidenceById,
+    // This line handles updating one evidence item.
     updateEvidence,
+    // This line handles deleting one evidence item.
     deleteEvidence
-} = require('../controllers/evidenceController') // import evidence controller functions
+// This line imports evidence controller functions.
+} = require('../controllers/evidenceController')
 
-const router = express.Router() // create a new router object
+// This line creates a new router object.
+const router = express.Router()
 
+// This part sets upload storage destination and file name rules.
 const storage = multer.diskStorage({
+    // This function sets upload folder path.
     destination: function (req, file, cb) {
-        cb(null, path.join(__dirname, '..', 'uploads')) // save uploaded files to the uploads folder
+        // This line saves uploaded files into backend uploads folder.
+        cb(null, path.join(__dirname, '..', 'uploads'))
     },
+    // This function creates a safe file name for uploaded files.
     filename: function (req, file, cb) {
-        const safeName = `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_')}` // generate a safe filename
-        cb(null, safeName) // pass the safe filename to multer
+        // This line builds safe file name using time and cleaned original name.
+        const safeName = `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`
+        // This line passes safe file name back to multer.
+        cb(null, safeName)
     }
 })
 
+// This part creates multer upload config with file type filtering.
 const upload = multer({
-    storage, // use the storage configuration above
+    // This line uses storage setup defined above.
+    storage,
+    // This line keeps uploaded files within a safe size.
+    limits: { fileSize: 50 * 1024 * 1024 },
+    // This function allows only selected file types.
     fileFilter: (req, file, cb) => {
-        const allowed = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf', 'video/mp4', 'video/mov'] // allowed upload mime types
-        cb(null, allowed.includes(file.mimetype)) // accept only allowed file types
+        // This line lists allowed file mime types.
+        const allowed = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf', 'video/mp4', 'video/quicktime']
+        if (!allowed.includes(file.mimetype)) {
+            return cb(new Error('Only image video and PDF files are allowed')) // This line rejects wrong file type
+        }
+
+        cb(null, true) // This line accepts valid file type
     }
 })
 
-router.post('/', auth, authorize('police', 'admin'), upload.single('file'), createEvidence) // upload evidence with file and role restrictions
-router.get('/', auth, getAllEvidence) // get list of evidence records for authorized users
-router.get('/:id', auth, getEvidenceById) // get one evidence record by id
-router.put('/:id', auth, authorize('police', 'admin'), upload.single('file'), updateEvidence) // update evidence and optional file upload
-router.delete('/:id', auth, authorize('police', 'admin'), deleteEvidence) // delete evidence by id for admin or police
+// This middleware sends upload errors as simple JSON
+const uploadEvidenceFile = (req, res, next) => {
+    upload.single('file')(req, res, (error) => {
+        if (error) {
+            return res.status(400).json({ message: error.message }) // This line sends upload error
+        }
 
-module.exports = router // export the router for server.js to mount
+        next() // This line continues when upload is valid
+    })
+}
+
+// This route uploads one evidence item and optional file for police and admin.
+router.post('/', auth, authorize('police', 'admin'), uploadEvidenceFile, createEvidence)
+// This route returns evidence list based on logged in user permissions.
+router.get('/', auth, getAllEvidence)
+// This route returns one evidence item by id.
+router.get('/:id', auth, getEvidenceById)
+// This route updates one evidence item and optional replacement file.
+router.put('/:id', auth, authorize('police', 'admin'), uploadEvidenceFile, updateEvidence)
+// This route deletes one evidence item by id.
+// This route deletes one evidence item and only admin can use it
+router.delete('/:id', auth, authorize('admin'), deleteEvidence)
+
+// This line exports router so server.js can mount it.
+module.exports = router

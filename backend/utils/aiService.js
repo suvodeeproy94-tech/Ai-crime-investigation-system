@@ -1,61 +1,62 @@
-// This file talks to Groq AI. It sends case notes to Groq and returns the AI answer to the backend.
-// This part keeps the Groq chat completion endpoint used by the backend
+// This file sends text to Groq AI and returns analysis result to controllers.
+// This line stores the Groq chat completion API URL used for AI requests.
+
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions'
 
-// This part sends crime case text to Groq and returns the generated analysis
+// This function sends crime note text to Groq and returns AI response text.
 const analyzeCrimeText = async (text) => {
-    // This step stops the request when the Groq API key is missing from backend .env
+    // This line stops early when Groq API key is missing in environment.
     if (!process.env.GROQ_API_KEY) {
         throw new Error('Groq API key is not configured')
     }
 
-    // Calls the Groq API with a structured chat completion request
+    // This line sends notes and instructions to Groq model.
     const response = await fetch(GROQ_API_URL, {
-        // This line uses POST because the request sends data to the AI service
+        // This line uses POST request for chat completion API.
         method: 'POST',
-        // This part sends the API key and tells Groq the request body is JSON
+        // This part sends auth token and json content type headers.
         headers: {
-            // This line adds the private Groq API key as a bearer token
+            // This line sends private Groq key in authorization header.
             'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-            // Marks the request payload as JSON
+            // This line tells API request body is JSON.
             'Content-Type': 'application/json'
         },
-        // This line changes the model name and messages into a JSON request body
+        // This part sends model name messages and generation options.
         body: JSON.stringify({
-            // This line uses the configured Groq model or a default fast model
+            // This line uses configured Groq model or fallback model.
             model: process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
-            // This part gives instructions and the user case text to the model
+            // This line sends system and user messages for AI context.
             messages: [
                 {
-                    // System message controls how the AI should behave
+                    // This line marks message as system instruction.
                     role: 'system',
-                    // Tells the AI to stay practical and avoid invented facts
+                    // This line gives behavior rules for investigation analysis.
                     content: 'You are an investigation assistant. Analyze crime case notes and return concise, practical observations: summary, possible leads, missing details, and next investigative steps. Do not invent facts.'
                 },
                 {
-                    // User message contains the case notes from the frontend
+                    // This line marks message as user provided text.
                     role: 'user',
-                    // Passes the actual text that needs analysis
+                    // This line sends actual case note text to model.
                     content: text
                 }
             ],
-            // This part keeps the model output focused and less random
+            // This line sets low randomness for stable results.
             temperature: 0.2
         })
     })
 
-    // This line reads the JSON response returned by Groq
+    // This line converts API response body to JSON data.
     const data = await response.json()
 
-    // Turns a failed Groq response into a clear backend error
+    // This line throws clear error when Groq returns failed status.
     if (!response.ok) {
         throw new Error(data.error?.message || 'AI analysis failed')
     }
 
-    // This line returns the model message or a fallback message if nothing was produced
+    // This line returns AI message text or safe fallback text.
     return data.choices?.[0]?.message?.content || 'No analysis returned'
 }
 
-// This line makes the AI helper so the controller can use it
+// This line exports AI helper function for controller use.
 module.exports = { analyzeCrimeText }
 

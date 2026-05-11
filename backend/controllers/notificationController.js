@@ -1,6 +1,7 @@
 // this controller manages notification retrieval and read status updates
 const Notification = require('../models/Notification') // import the Notification model
 
+// This function returns notifications for logged in user
 exports.getNotifications = async (req, res) => {
     try {
         const filter = { recipient: req.user.id } // only load notifications for the current user
@@ -15,6 +16,7 @@ exports.getNotifications = async (req, res) => {
     }
 }
 
+// This function marks one notification as read
 exports.markAsRead = async (req, res) => {
     try {
         const notification = await Notification.findById(req.params.id) // find the notification by id
@@ -34,6 +36,7 @@ exports.markAsRead = async (req, res) => {
     }
 }
 
+// This function returns unread notification count for logged in user
 exports.getUnreadCount = async (req, res) => {
     try {
         const count = await Notification.countDocuments({ recipient: req.user.id, read: false }) // count unread notifications for the user
