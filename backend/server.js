@@ -16,6 +16,9 @@ require('dotenv').config({ path: path.join(__dirname, '.env') })
 const fs = require('fs')
 const connectDB = require('./config/db')
 
+// This line reads allowed frontend URL from environment or allows local frontend.
+const allowedOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173'
+
 // This part creates the Express app instance
 const app = express()
 
@@ -25,7 +28,7 @@ const server = http.createServer(app)
 // This part creates the Socket.io server for live updates
 const io = new Server(server, {
     cors: {
-        origin: '*',
+        origin: allowedOrigin,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
     }
 })
@@ -47,7 +50,7 @@ io.on('connection', (socket) => {
 // This check allows the backend to read JSON request bodies
 app.use(express.json())
 // This check allows browser requests from the frontend app
-app.use(cors())
+app.use(cors({ origin: allowedOrigin }))
 
 // Serve uploaded evidence files from the backend
 const uploadsDir = path.join(__dirname, 'uploads')

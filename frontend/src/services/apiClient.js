@@ -2,10 +2,13 @@
 // This line imports axios for making HTTP requests to the backend
 import axios from 'axios'
 
+// This line reads backend API URL from frontend .env file.
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
+
 // This part creates one shared axios instance for all API calls
 const API = axios.create({
     // Sets the backend API base URL used by every request
-    baseURL: 'http://localhost:5000/api'
+    baseURL: apiBaseUrl
 })
 
 // This line adds the saved login token to outgoing requests

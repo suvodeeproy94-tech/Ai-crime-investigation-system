@@ -945,6 +945,264 @@ Use the sidebar to open:
 
 Some pages are visible only for selected roles.
 
+## Deployment Guide Using AWS EC2 And S3
+
+This section explains how to make the project live so other people can open it from the internet.
+
+According to the project synopsis:
+
+1. Backend should run on AWS EC2.
+2. Frontend should be hosted on AWS S3.
+3. Evidence files can later be stored in AWS S3.
+
+Important: MongoDB Compass is only for viewing local database. It is not online hosting.
+
+For live deployment, use one of these database options:
+
+1. MongoDB Atlas for easiest online database.
+2. MongoDB installed on EC2 if you do not want Atlas.
+
+### Recommended Live Setup
+
+For simple deployment, use this setup:
+
+1. Frontend: AWS S3 static website
+2. Backend: AWS EC2 Ubuntu server
+3. Database: MongoDB Atlas or MongoDB on EC2
+4. AI: Groq API key in backend `.env`
+5. Map: Google Maps key in frontend `.env`
+6. Login: Google Client ID in both frontend and backend `.env`
+
+### Step 1: Prepare Backend For EC2
+
+On EC2, backend `.env` should look like this:
+
+```env
+PORT=5000
+MONGO_URI=your_online_mongodb_connection_string
+JWT_SECRET=your_strong_secret
+GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL=llama-3.1-8b-instant
+GOOGLE_CLIENT_ID=your_google_login_client_id
+CORS_ORIGIN=http://your-s3-website-url
+```
+
+If you use a domain and HTTPS later, `CORS_ORIGIN` should be your frontend domain.
+
+Example:
+
+```env
+CORS_ORIGIN=https://yourdomain.com
+```
+
+### Step 2: Prepare Frontend For S3
+
+Before building frontend, set `frontend/.env` like this:
+
+```env
+VITE_GOOGLE_CLIENT_ID=your_google_login_client_id
+VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+VITE_API_BASE_URL=http://your-ec2-public-ip:5000/api
+VITE_SOCKET_URL=http://your-ec2-public-ip:5000
+```
+
+If you use a domain and HTTPS later:
+
+```env
+VITE_API_BASE_URL=https://api.yourdomain.com/api
+VITE_SOCKET_URL=https://api.yourdomain.com
+```
+
+### Step 3: Create AWS EC2 Server
+
+1. Open AWS Console.
+2. Go to EC2.
+3. Launch instance.
+4. Select Ubuntu.
+5. Select free tier instance if this is only for demo.
+6. Create or select key pair.
+7. Allow these inbound ports in security group:
+
+```text
+22   SSH
+80   HTTP
+443  HTTPS
+5000 Backend API for simple testing
+```
+
+For a beginner demo, port `5000` is enough to test backend.
+
+For a better production setup, use Nginx on port `80` or `443`.
+
+### Step 4: Install Node.js On EC2
+
+Connect to EC2 using SSH.
+
+Then run:
+
+```bash
+sudo apt update
+sudo apt install -y nodejs npm git
+node -v
+npm -v
+```
+
+Install PM2:
+
+```bash
+sudo npm install -g pm2
+```
+
+PM2 keeps backend running after you close the terminal.
+
+### Step 5: Upload Backend Code To EC2
+
+You can use GitHub:
+
+```bash
+git clone your_github_repo_url
+cd your_repo_folder/backend
+npm install
+```
+
+Create backend `.env`:
+
+```bash
+nano .env
+```
+
+Paste production backend values.
+
+Start backend:
+
+```bash
+pm2 start server.js --name crime-backend
+pm2 save
+```
+
+Check backend:
+
+```text
+http://your-ec2-public-ip:5000
+```
+
+You should see:
+
+```text
+AI Based Crime Investigation System API is running
+```
+
+### Step 6: Build Frontend
+
+On your local computer, go to frontend:
+
+```bash
+cd frontend
+npm install
+npm run build
+```
+
+This creates a `dist` folder.
+
+The `dist` folder is the final frontend website.
+
+### Step 7: Host Frontend On AWS S3
+
+1. Open AWS Console.
+2. Go to S3.
+3. Create bucket.
+4. Use a unique bucket name.
+5. Turn off Block all public access only if you want public website hosting.
+6. Upload all files from `frontend/dist`.
+7. Go to bucket Properties.
+8. Enable Static website hosting.
+9. Set index document:
+
+```text
+index.html
+```
+
+10. Set error document:
+
+```text
+index.html
+```
+
+Using `index.html` as error document helps React routes work after refresh.
+
+### Step 8: Add S3 Bucket Policy
+
+Use this only for public demo hosting.
+
+Replace `your-bucket-name` with your bucket name.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "PublicReadGetObject",
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::your-bucket-name/*"
+    }
+  ]
+}
+```
+
+After this, open the S3 website endpoint.
+
+### Step 9: Update Google Settings After Deployment
+
+In Google Cloud, update Google Login allowed origins.
+
+Add frontend website URL:
+
+```text
+http://your-s3-website-url
+```
+
+Also update Google Maps API key website restrictions.
+
+Add:
+
+```text
+http://your-s3-website-url/*
+```
+
+If you use your own domain, add your domain instead.
+
+### Step 10: Test Live Project
+
+After deployment, test these:
+
+1. Open frontend URL.
+2. Login.
+3. Create complaint.
+4. Create FIR.
+5. Create case.
+6. Open Crime Map.
+7. Upload evidence.
+8. Generate AI report.
+9. Open Activity Logs.
+10. Test Chat.
+
+### Can This Be Deployed Directly From This Computer?
+
+Yes, but only after AWS setup is available.
+
+To deploy directly from this computer, you need:
+
+1. AWS CLI installed
+2. AWS access key and secret key configured
+3. EC2 key pair file
+4. S3 bucket name
+5. EC2 public IP
+6. Production MongoDB URL
+
+Without these, the code can be prepared, but the actual live deployment cannot be completed from this machine.
+
 ## Demo Data
 
 The project has seed scripts for demo records.

@@ -3,11 +3,14 @@ import { io } from 'socket.io-client' // This line imports Socket.io client.
 
 let socket = null // This variable keeps one shared socket connection.
 
+// This line reads backend socket URL from frontend .env file.
+const socketBaseUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000'
+
 // This function returns the same socket connection everywhere.
 export function getSocket() {
     // This check creates socket only once.
     if (!socket) {
-        socket = io('http://localhost:5000', {
+        socket = io(socketBaseUrl, {
             autoConnect: true
         })
     }
