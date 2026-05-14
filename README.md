@@ -366,30 +366,30 @@ Main collections:
 
 ```text
 project-root
-├── assets
-│   └── project synopsis image
-├── backend
-│   ├── config
-│   ├── controllers
-│   ├── middleware
-│   ├── models
-│   ├── routes
-│   ├── scripts
-│   ├── utils
-│   ├── server.js
-│   └── package.json
-├── frontend
-│   ├── public
-│   ├── src
-│   │   ├── components
-│   │   ├── context
-│   │   ├── hooks
-│   │   ├── pages
-│   │   ├── services
-│   │   ├── App.jsx
-│   │   └── main.jsx
-│   └── package.json
-└── README.md
+|-- assets
+|   |-- project synopsis image
+|-- backend
+|   |-- config
+|   |-- controllers
+|   |-- middleware
+|   |-- models
+|   |-- routes
+|   |-- scripts
+|   |-- utils
+|   |-- server.js
+|   |-- package.json
+|-- frontend
+|   |-- public
+|   |-- src
+|   |   |-- components
+|   |   |-- context
+|   |   |-- hooks
+|   |   |-- pages
+|   |   |-- services
+|   |   |-- App.jsx
+|   |   |-- main.jsx
+|   |-- package.json
+|-- README.md
 ```
 
 ## Requirements
@@ -402,6 +402,326 @@ Before running the project, install these tools:
 4. Git
 5. Google Cloud account for Google login and Google Maps
 6. Groq API key for AI features
+
+## Package Installation Guide
+
+This project already has `package.json` files in both backend and frontend folders.
+
+So you do not need to install every package one by one. You only need to run `npm install`.
+
+### Install Backend Packages
+
+Open terminal in the project folder and run:
+
+```bash
+cd backend
+npm install
+```
+
+This command installs all backend packages written in `backend/package.json`.
+
+Main backend packages:
+
+1. `express` for backend API server
+2. `mongoose` for MongoDB connection
+3. `jsonwebtoken` for login token
+4. `bcryptjs` for password hashing
+5. `cors` for frontend backend connection
+6. `dotenv` for reading `.env` file
+7. `multer` for file upload
+8. `speakeasy` for OTP two-factor authentication
+9. `qrcode` for OTP QR code
+10. `socket.io` for real-time updates
+11. `google-auth-library` for Google login verification
+12. `groq-sdk` for Groq AI support
+13. `nodemon` for development server restart
+
+### Install Frontend Packages
+
+Open terminal in the project folder and run:
+
+```bash
+cd frontend
+npm install
+```
+
+This command installs all frontend packages written in `frontend/package.json`.
+
+Main frontend packages:
+
+1. `react` for frontend UI
+2. `react-dom` for rendering React app
+3. `react-router-dom` for page routing
+4. `axios` for API calls
+5. `socket.io-client` for real-time frontend connection
+6. `@react-oauth/google` for Google login button
+7. `three` for 3D logo
+8. `vite` for frontend development server
+9. `tailwindcss` for styling
+
+### If Any Package Is Missing
+
+Normally this is not needed. But if any package is missing, install it from the correct folder.
+
+Backend example:
+
+```bash
+cd backend
+npm install socket.io
+```
+
+Frontend example:
+
+```bash
+cd frontend
+npm install socket.io-client
+```
+
+After installing packages, restart the server.
+
+## Environment Variables Guide
+
+This project needs two `.env` files.
+
+One file is for backend:
+
+```text
+backend/.env
+```
+
+One file is for frontend:
+
+```text
+frontend/.env
+```
+
+Do not upload these files to GitHub because they contain private keys.
+
+### Backend `.env` Example
+
+```env
+PORT=5000
+MONGO_URI=your_mongodb_connection_string
+JWT_SECRET=your_jwt_secret
+GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL=llama-3.1-8b-instant
+GOOGLE_CLIENT_ID=your_google_login_client_id
+```
+
+### Frontend `.env` Example
+
+```env
+VITE_GOOGLE_CLIENT_ID=your_google_login_client_id
+VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+```
+
+### What Each Key Means
+
+1. `PORT`
+
+This is the backend server port. This project uses `5000`.
+
+2. `MONGO_URI`
+
+This is your MongoDB connection link. The backend uses it to connect with the database.
+
+3. `JWT_SECRET`
+
+This is a private text used to create and check login tokens.
+
+4. `GROQ_API_KEY`
+
+This key is used for Groq AI features.
+
+5. `GROQ_MODEL`
+
+This is the Groq model name used by the project.
+
+6. `GOOGLE_CLIENT_ID`
+
+This is used by backend to verify Google login.
+
+7. `VITE_GOOGLE_CLIENT_ID`
+
+This is used by frontend to show and run Google login.
+
+8. `VITE_GOOGLE_MAPS_API_KEY`
+
+This is used by frontend to show Google Maps on the Crime Map page.
+
+## How To Create Required API Keys
+
+This project uses three important external services:
+
+1. MongoDB for database
+2. Groq for AI
+3. Google Cloud for Google Login and Google Maps
+
+### 1. How To Create MongoDB Connection String
+
+You can use MongoDB locally or MongoDB Atlas.
+
+For MongoDB Atlas:
+
+1. Open MongoDB Atlas website.
+2. Create a free account.
+3. Create a new cluster.
+4. Create a database user with username and password.
+5. Add your IP address in Network Access.
+6. Click Connect.
+7. Select Drivers.
+8. Copy the connection string.
+9. Put it in `backend/.env`.
+
+Example:
+
+```env
+MONGO_URI=mongodb+srv://username:password@clustername.mongodb.net/crime_investigation_system
+```
+
+If you use local MongoDB, you can use:
+
+```env
+MONGO_URI=mongodb://127.0.0.1:27017/crime_investigation_system
+```
+
+### 2. How To Create Groq API Key
+
+Groq API key is needed for AI analysis and AI report generation.
+
+Steps:
+
+1. Open Groq Console:
+
+```text
+https://console.groq.com/
+```
+
+2. Login or create an account.
+3. Go to API Keys.
+4. Click Create API Key.
+5. Copy the key.
+6. Paste it in `backend/.env`.
+
+Example:
+
+```env
+GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL=llama-3.1-8b-instant
+```
+
+Do not share your Groq API key.
+
+### 3. How To Create Google Login Client ID
+
+Google Client ID is needed for Google Login.
+
+Steps:
+
+1. Open Google Cloud Console:
+
+```text
+https://console.cloud.google.com/
+```
+
+2. Create a new project or select your existing project.
+3. Go to APIs and Services.
+4. Open OAuth consent screen.
+5. Select External for normal testing.
+6. Fill app name, email, and required details.
+7. Save the consent screen.
+8. Go to Credentials.
+9. Click Create Credentials.
+10. Select OAuth client ID.
+11. Select Web application.
+12. Add authorized JavaScript origin:
+
+```text
+http://localhost:5173
+```
+
+13. Add authorized redirect URI if Google asks:
+
+```text
+http://localhost:5173
+```
+
+14. Click Create.
+15. Copy the Client ID.
+16. Paste it in both backend and frontend `.env` files.
+
+Backend:
+
+```env
+GOOGLE_CLIENT_ID=your_google_login_client_id
+```
+
+Frontend:
+
+```env
+VITE_GOOGLE_CLIENT_ID=your_google_login_client_id
+```
+
+Remember: Google Client ID is for login only. It is not for Google Maps.
+
+### 4. How To Create Google Maps API Key
+
+Google Maps API key is needed for the Crime Map page.
+
+Steps:
+
+1. Open Google Cloud Console:
+
+```text
+https://console.cloud.google.com/
+```
+
+2. Create or select a project.
+3. Make sure billing is enabled for the project.
+4. Go to APIs and Services.
+5. Go to Library.
+6. Search for:
+
+```text
+Maps JavaScript API
+```
+
+7. Open it.
+8. Click Enable.
+9. Go to Credentials.
+10. Click Create Credentials.
+11. Select API Key.
+12. Copy the generated API key.
+13. Paste it in `frontend/.env`.
+
+Example:
+
+```env
+VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+```
+
+For safety, restrict the key.
+
+Application restriction:
+
+```text
+Websites
+```
+
+Allowed websites for local use:
+
+```text
+http://localhost:5173/*
+http://127.0.0.1:5173/*
+```
+
+API restriction:
+
+```text
+Maps JavaScript API
+```
+
+Remember: Google Maps API key is for map only. It is not for Google Login.
 
 ## Backend Setup
 
