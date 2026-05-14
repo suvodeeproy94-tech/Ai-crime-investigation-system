@@ -398,10 +398,11 @@ Before running the project, install these tools:
 
 1. Node.js
 2. npm
-3. MongoDB or MongoDB Atlas
-4. Git
-5. Google Cloud account for Google login and Google Maps
-6. Groq API key for AI features
+3. MongoDB Community Server
+4. MongoDB Compass
+5. Git
+6. Google Cloud account for Google login and Google Maps
+7. Groq API key for AI features
 
 ## Package Installation Guide
 
@@ -551,39 +552,83 @@ This is used by frontend to show Google Maps on the Crime Map page.
 
 ## How To Create Required API Keys
 
-This project uses three important external services:
+This project uses these important tools and services:
 
-1. MongoDB for database
+1. Local MongoDB for database
 2. Groq for AI
 3. Google Cloud for Google Login and Google Maps
 
-### 1. How To Create MongoDB Connection String
+### 1. How To Use MongoDB Compass
 
-You can use MongoDB locally or MongoDB Atlas.
+This project uses local MongoDB with MongoDB Compass.
 
-For MongoDB Atlas:
+MongoDB Compass is not the database server. It is a visual tool to see your MongoDB data.
 
-1. Open MongoDB Atlas website.
-2. Create a free account.
-3. Create a new cluster.
-4. Create a database user with username and password.
-5. Add your IP address in Network Access.
-6. Click Connect.
-7. Select Drivers.
-8. Copy the connection string.
-9. Put it in `backend/.env`.
+You need two things:
 
-Example:
+1. MongoDB Community Server
+2. MongoDB Compass
 
-```env
-MONGO_URI=mongodb+srv://username:password@clustername.mongodb.net/crime_investigation_system
+Steps:
+
+1. Install MongoDB Community Server on your computer.
+2. Install MongoDB Compass.
+3. Start MongoDB service if it is not already running.
+4. Open MongoDB Compass.
+5. Connect with this local connection:
+
+```text
+mongodb://localhost:27017
 ```
 
-If you use local MongoDB, you can use:
+or:
+
+```text
+mongodb://127.0.0.1:27017
+```
+
+6. In the project backend `.env`, use this MongoDB URL:
 
 ```env
 MONGO_URI=mongodb://127.0.0.1:27017/crime_investigation_system
 ```
+
+7. Start the backend server.
+8. The database will be created automatically when data is inserted.
+
+The database name is:
+
+```text
+crime_investigation_system
+```
+
+You can see these collections in MongoDB Compass:
+
+1. users
+2. complaints
+3. firs
+4. cases
+5. evidences
+6. suspects
+7. reports
+8. notifications
+9. chatmessages
+10. meetings
+11. ailogs
+12. activitylogs
+
+If the database is empty, run demo seed:
+
+```bash
+cd backend
+npm run seed:advanced
+```
+
+This will add demo cases, logs, notifications, chat messages, FIR, evidence, suspects, and reports.
+
+MongoDB Atlas is optional. You do not need Atlas for this local project.
+
+Use Atlas only if you want to host the database online.
 
 ### 2. How To Create Groq API Key
 
