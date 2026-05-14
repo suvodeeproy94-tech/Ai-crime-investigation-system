@@ -1,8 +1,8 @@
 // This file shows live meeting page where admin can create meetings and police can join.
 // This line imports react hooks for state and effect handling.
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 // This line imports shared API client for backend requests.
-import API from '../services/apiClient'
+import API, { getApiErrorMessage } from '../services/apiClient'
 // This line imports top bar component.
 import Navbar from '../components/Navbar'
 // This line imports sidebar component.
@@ -16,6 +16,12 @@ import useAuth from '../hooks/useAuth'
 function LiveMeeting() {
     // This line reads current logged in user data.
     const { user } = useAuth()
+    // This line stores user role safely.
+    let userRole = ''
+
+    if (user && user.role) {
+        userRole = user.role
+    }
     // This line stores all active meetings.
     const [meetings, setMeetings] = useState([])
     // This line stores loading state.
@@ -28,12 +34,34 @@ function LiveMeeting() {
     const [selectedRoomCode, setSelectedRoomCode] = useState('')
 
     // This line checks whether current user is admin.
-    const isAdmin = user?.role === 'admin'
+    const isAdmin = userRole === 'admin'
     // This line checks whether current user is police.
-    const isPolice = user?.role === 'police'
+    const isPolice = userRole === 'police'
 
     // This line builds full meeting URL for iframe.
-    const meetingUrl = useMemo(() => selectedRoomCode ? `https://meet.jit.si/${selectedRoomCode}` : '', [selectedRoomCode])
+    let meetingUrl = ''
+
+    if (selectedRoomCode) {
+        meetingUrl = `https://meet.jit.si/${selectedRoomCode}`
+    }
+
+    // This helper returns meeting creator name safely.
+    const getCreatorName = (meeting) => {
+        if (meeting.createdBy && meeting.createdBy.name) {
+            return meeting.createdBy.name
+        }
+
+        return 'Admin'
+    }
+
+    // This helper returns the active class for one meeting button
+    const getMeetingButtonClass = (meeting) => {
+        if (selectedRoomCode === meeting.roomCode) {
+            return 'meeting-open-btn active'
+        }
+
+        return 'meeting-open-btn'
+    }
 
     // This function loads active meetings from backend.
     const loadMeetings = async () => {
@@ -41,16 +69,20 @@ function LiveMeeting() {
         setError('')
         try {
             // This line requests active meetings.
-            const res = await API.get('/meetings')
+            const response = await API.get('/meetings')
             // This line saves meetings in state.
-            setMeetings(res.data || [])
+            setMeetings(response.data || [])
             // This line selects newest meeting by default when nothing selected.
-            if (!selectedRoomCode && res.data?.length) setSelectedRoomCode(res.data[0].roomCode)
+            if (!selectedRoomCode && response.data && response.data.length > 0) {
+                setSelectedRoomCode(response.data[0].roomCode)
+            }
             // This line clears selected room when no active meeting exists.
-            if (!res.data?.length) setSelectedRoomCode('')
-        } catch (err) {
+            if (!response.data || response.data.length === 0) {
+                setSelectedRoomCode('')
+            }
+        } catch (requestError) {
             // This line saves readable error.
-            setError(err.response?.data?.message || 'Unable to load meetings')
+            setError(getApiErrorMessage(requestError, 'Unable to load meetings'))
         } finally {
             // This line marks loading done.
             setLoading(false)
@@ -74,7 +106,9 @@ function LiveMeeting() {
         // This line clears old error.
         setError('')
         // This line validates title input.
-        if (!meetingTitle.trim()) return
+        if (!meetingTitle.trim()) {
+            return
+        }
         try {
             // This line sends create meeting request.
             await API.post('/meetings', { title: meetingTitle })
@@ -82,9 +116,9 @@ function LiveMeeting() {
             setMeetingTitle('')
             // This line reloads meetings so new meeting appears.
             await loadMeetings()
-        } catch (err) {
+        } catch (requestError) {
             // This line saves readable error.
-            setError(err.response?.data?.message || 'Unable to create meeting')
+            setError(getApiErrorMessage(requestError, 'Unable to create meeting'))
         }
     }
 
@@ -97,9 +131,9 @@ function LiveMeeting() {
             await API.patch(`/meetings/${meetingId}/close`)
             // This line reloads list after close.
             await loadMeetings()
-        } catch (err) {
+        } catch (requestError) {
             // This line saves readable error.
-            setError(err.response?.data?.message || 'Unable to close meeting')
+            setError(getApiErrorMessage(requestError, 'Unable to close meeting'))
         }
     }
 
@@ -163,11 +197,11 @@ function LiveMeeting() {
                                     {!loading && meetings.map((meeting) => (
                                         <div key={meeting._id} className="meeting-item">
                                             <button
-                                                className={`meeting-open-btn ${selectedRoomCode === meeting.roomCode ? 'active' : ''}`}
+                                                className={getMeetingButtonClass(meeting)}
                                                 onClick={() => setSelectedRoomCode(meeting.roomCode)}
                                             >
                                                 <strong>{meeting.title}</strong>
-                                                <span>Created by {meeting.createdBy?.name || 'Admin'}</span>
+                                                <span>Created by {getCreatorName(meeting)}</span>
                                             </button>
                                             {isAdmin && (
                                                 <button className="btn btn-danger" onClick={() => handleCloseMeeting(meeting._id)}>

@@ -1,97 +1,129 @@
-// This file handles chat API actions like listing contacts sending messages and reading conversation history.
-// This line imports the user model so we can list allowed chat contacts.
-const User = require('../models/User')
-// This line imports chat message model so we can save and read messages.
-const ChatMessage = require('../models/ChatMessage')
-// This line imports helper functions for role based chat rules.
-const { canRolesChat, getAllowedTargetRoles } = require('../utils/chatPermissions')
+// This file handles chat actions like contacts, messages, and conversation history.
+const User = require('../models/User') // This line imports the User model.
+const ChatMessage = require('../models/ChatMessage') // This line imports the ChatMessage model.
+const { createActivityLog } = require('../utils/activityLogger') // This line imports activity log helper.
+const { sendToUser } = require('../utils/socketHelper') // This line imports socket helper.
+// This line imports chat role helpers.
+const {
+    canRolesChat,
+    getAllowedTargetRoles
+} = require('../utils/chatPermissions')
 
 // This function returns users that the logged in user can chat with.
 const getChatUsers = async (req, res) => {
-    // This line reads logged in user id from auth token data.
-    const loggedInUserId = req.user.id
-    // This line reads logged in user role from auth token data.
-    const loggedInUserRole = req.user.role
-    // This line gets the list of roles this user can chat with.
-    const allowedRoles = getAllowedTargetRoles(loggedInUserRole)
+    try {
+        // Read logged in user details from the auth middleware.
+        const loggedInUserId = req.user.id
+        const loggedInUserRole = req.user.role
 
-    // This line returns empty list when no roles are allowed.
-    if (allowedRoles.length === 0) {
-        return res.json([])
+        // Get the roles this user is allowed to chat with.
+        const allowedRoles = getAllowedTargetRoles(loggedInUserRole)
+
+        // Return an empty list when no chat roles are allowed.
+        if (allowedRoles.length === 0) {
+            return res.json([])
+        }
+
+        // Find allowed users and remove the current user from the list.
+        const users = await User.find({
+            _id: { $ne: loggedInUserId },
+            role: { $in: allowedRoles }
+        }).select('_id name email role')
+
+        // Return the allowed chat users.
+        res.json(users)
+    } catch (error) {
+        // Return a simple server error if users cannot be loaded.
+        res.status(500).json({ error: error.message })
     }
-
-    // This line fetches users with allowed roles and excludes current user.
-    const users = await User.find({
-        _id: { $ne: loggedInUserId },
-        role: { $in: allowedRoles }
-    }).select('_id name email role')
-
-    // This line returns the allowed chat user list.
-    res.json(users)
 }
 
 // This function returns chat messages between logged in user and one selected user.
 const getConversation = async (req, res) => {
-    // This line reads current logged in user id.
-    const myUserId = req.user.id
-    // This line reads selected other user id from URL.
-    const otherUserId = req.params.otherUserId
+    try {
+        // Read both user ids needed for the conversation.
+        const myUserId = req.user.id
+        const otherUserId = req.params.otherUserId
 
-    // This line loads the selected user to check role and existence.
-    const otherUser = await User.findById(otherUserId).select('_id role')
-    // This line returns not found when selected user does not exist.
-    if (!otherUser) return res.status(404).json({ message: 'User not found' })
+        // Load the selected user to check role and existence.
+        const otherUser = await User.findById(otherUserId).select('_id role')
 
-    // This line checks if logged in role can chat with selected user role.
-    const allowed = canRolesChat(req.user.role, otherUser.role)
-    // This line blocks conversation access when roles are not allowed.
-    if (!allowed) return res.status(403).json({ message: 'Chat not allowed for these roles' })
+        if (!otherUser) {
+            return res.status(404).json({ message: 'User not found' })
+        }
 
-    // This line fetches all messages between both users sorted by creation time.
-    const messages = await ChatMessage.find({
-        $or: [
-            { sender: myUserId, receiver: otherUserId },
-            { sender: otherUserId, receiver: myUserId }
-        ]
-    }).sort({ createdAt: 1 })
+        // Check if these two roles are allowed to chat.
+        const allowed = canRolesChat(req.user.role, otherUser.role)
 
-    // This line returns full message list for this conversation.
-    res.json(messages)
+        if (!allowed) {
+            return res.status(403).json({ message: 'Chat not allowed for these roles' })
+        }
+
+        // Find messages sent in either direction between these two users.
+        const messages = await ChatMessage.find({
+            $or: [
+                { sender: myUserId, receiver: otherUserId },
+                { sender: otherUserId, receiver: myUserId }
+            ]
+        }).sort({ createdAt: 1 })
+
+        // Return the message list.
+        res.json(messages)
+    } catch (error) {
+        // Return a simple server error if messages cannot be loaded.
+        res.status(500).json({ error: error.message })
+    }
 }
 
 // This function saves one new message from logged in user to selected user.
 const sendMessage = async (req, res) => {
-    // This line reads current logged in user id.
-    const myUserId = req.user.id
-    // This line reads selected other user id from URL.
-    const otherUserId = req.params.otherUserId
-    // This line reads message text from request body.
-    const text = req.body.text
+    try {
+        // Read sender, receiver, and message text.
+        const myUserId = req.user.id
+        const otherUserId = req.params.otherUserId
+        const text = req.body.text
 
-    // This line checks if text exists and is not only spaces.
-    if (!text || !text.trim()) {
-        return res.status(400).json({ message: 'Message text is required' })
+        // Message text is required and cannot be only spaces.
+        if (!text || !text.trim()) {
+            return res.status(400).json({ message: 'Message text is required' })
+        }
+
+        // Load selected user to check role and existence.
+        const otherUser = await User.findById(otherUserId).select('_id role')
+
+        if (!otherUser) {
+            return res.status(404).json({ message: 'User not found' })
+        }
+
+        // Check if these two roles are allowed to chat.
+        const allowed = canRolesChat(req.user.role, otherUser.role)
+
+        if (!allowed) {
+            return res.status(403).json({ message: 'Chat not allowed for these roles' })
+        }
+
+        // Create and save one new chat message.
+        const message = await ChatMessage.create({
+            sender: myUserId,
+            receiver: otherUserId,
+            text: text.trim()
+        })
+
+        // Save an audit log for sending a chat message.
+        await createActivityLog(req, 'send', 'chat', 'Sent a chat message', String(message._id))
+
+        // Send the message live to the receiver.
+        sendToUser(req, otherUserId, 'newMessage', message)
+
+        // Send the message live to the sender also.
+        sendToUser(req, myUserId, 'newMessage', message)
+
+        // Return the newly saved message.
+        res.status(201).json(message)
+    } catch (error) {
+        // Return a simple server error if sending fails.
+        res.status(500).json({ error: error.message })
     }
-
-    // This line loads selected user to check role and existence.
-    const otherUser = await User.findById(otherUserId).select('_id role')
-    // This line returns not found when selected user does not exist.
-    if (!otherUser) return res.status(404).json({ message: 'User not found' })
-
-    // This line checks if logged in role can chat with selected user role.
-    const allowed = canRolesChat(req.user.role, otherUser.role)
-    // This line blocks sending when roles are not allowed.
-    if (!allowed) return res.status(403).json({ message: 'Chat not allowed for these roles' })
-
-    // This line creates and saves one new chat message document.
-    const message = await ChatMessage.create({
-        sender: myUserId,
-        receiver: otherUserId,
-        text: text.trim()
-    })
-
-    // This line returns the newly saved message.
-    res.status(201).json(message)
 }
 
 // This line exports all controller functions for chat routes.

@@ -1,179 +1,345 @@
-// This file shows report management page
-// This page lets logged in users create view edit and delete reports
-import { useEffect, useState } from 'react' // This line imports state and effect hooks
-import API from '../services/apiClient' // This line imports shared api client
-import Navbar from '../components/Navbar' // This line imports top bar
-import Sidebar from '../components/Sidebar' // This line imports left menu
-import Loader from '../components/Loader' // This line imports the shared loading logo component
-import useAuth from '../hooks/useAuth' // This line imports user role data
+// This file shows the report management page.
+// It lets logged in users create, view, edit, and delete reports.
+import { useEffect, useState } from 'react' // This line imports state and effect hooks.
+import API, { getApiErrorMessage } from '../services/apiClient' // This line imports shared API client.
+import Navbar from '../components/Navbar' // This line imports top bar.
+import Sidebar from '../components/Sidebar' // This line imports left menu.
+import Loader from '../components/Loader' // This line imports the shared loading logo component.
+import useAuth from '../hooks/useAuth' // This line imports user role data.
 
-// This object keeps empty form values
+// This object keeps empty report form values.
 const emptyForm = {
-    title: '', // This line stores report title
-    content: '', // This line stores report content
-    status: 'draft', // This line stores report status
-    caseId: '', // This line stores selected case id
-    firId: '' // This line stores selected fir id
+    title: '',
+    content: '',
+    status: 'draft',
+    caseId: '',
+    firId: ''
 }
 
-// This part renders report management screen
+// This helper returns linked case title safely.
+const getCaseTitle = (report) => {
+    if (report.caseId && report.caseId.title) {
+        return report.caseId.title
+    }
+
+    return 'No case linked'
+}
+
+// This helper returns linked FIR title safely.
+const getFIRTitle = (report) => {
+    if (report.firId && report.firId.title) {
+        return report.firId.title
+    }
+
+    return 'No fir linked'
+}
+
+// This helper returns report creator name safely.
+const getCreatorName = (report) => {
+    if (report.createdBy && report.createdBy.name) {
+        return report.createdBy.name
+    }
+
+    return 'Unknown user'
+}
+
+// This part renders report management screen.
 function Reports() {
-    const { user } = useAuth() // This line reads current user data
-    const [reports, setReports] = useState([]) // This line stores report list
-    const [cases, setCases] = useState([]) // This line stores case dropdown data
-    const [firs, setFirs] = useState([]) // This line stores fir dropdown data
-    const [form, setForm] = useState(emptyForm) // This line stores form values
-    const [editId, setEditId] = useState('') // This line stores selected report id for edit
-    const [loading, setLoading] = useState(true) // This line stores loading state
-    const [saving, setSaving] = useState(false) // This line stores save button state
-    const [message, setMessage] = useState('') // This line stores success message
-    const [error, setError] = useState('') // This line stores error message
+    const { user } = useAuth() // This line reads current user data.
+    let userRole = '' // This line stores role safely.
+    let userId = '' // This line stores user id safely.
 
-    const isAdmin = user?.role === 'admin' // This line checks admin role
+    if (user && user.role) {
+        userRole = user.role
+    }
 
-    // This function loads case and fir options
+    if (user && user.id) {
+        userId = user.id
+    }
+
+    const [reports, setReports] = useState([]) // This line stores report list.
+    const [cases, setCases] = useState([]) // This line stores case dropdown data.
+    const [firs, setFirs] = useState([]) // This line stores fir dropdown data.
+    const [form, setForm] = useState(emptyForm) // This line stores form values.
+    const [aiNotes, setAiNotes] = useState('') // This line stores raw notes for AI report generation.
+    const [editId, setEditId] = useState('') // This line stores selected report id for edit.
+    const [loading, setLoading] = useState(true) // This line stores loading state.
+    const [saving, setSaving] = useState(false) // This line stores save button state.
+    const [aiLoading, setAiLoading] = useState(false) // This line stores AI report button state.
+    const [message, setMessage] = useState('') // This line stores success message.
+    const [error, setError] = useState('') // This line stores error message.
+
+    const isAdmin = userRole === 'admin' // This line checks admin role.
+    const canUseAI = ['police', 'admin'].includes(userRole) // This line checks who can generate AI reports.
+
+    // This function loads case and FIR options.
     const loadOptions = async () => {
         try {
-            const [caseRes, firRes] = await Promise.all([
-                API.get('/cases'), // This line loads case options
-                API.get('/fir') // This line loads fir options
-            ])
+            const caseResponse = await API.get('/cases')
+            const firResponse = await API.get('/fir')
 
-            setCases(caseRes.data || []) // This line saves case options
-            setFirs(firRes.data || []) // This line saves fir options
+            setCases(caseResponse.data || [])
+            setFirs(firResponse.data || [])
         } catch (requestError) {
-            setError(requestError.response?.data?.message || 'Unable to load report options') // This line shows option loading error
+            setError(getApiErrorMessage(requestError, 'Unable to load report options'))
         }
     }
 
-    // This function loads reports
+    // This function loads reports.
     const loadReports = async () => {
-        setLoading(true) // This line starts loading
-        setError('') // This line clears old error
+        setLoading(true)
+        setError('')
 
         try {
-            const res = await API.get('/reports') // This line loads report list
-            setReports(res.data || []) // This line saves report list
+            const response = await API.get('/reports')
+            setReports(response.data || [])
         } catch (requestError) {
-            setError(requestError.response?.data?.message || 'Unable to load reports') // This line shows loading error
+            setError(getApiErrorMessage(requestError, 'Unable to load reports'))
         } finally {
-            setLoading(false) // This line stops loading
+            setLoading(false)
         }
     }
 
-    // This effect runs once to load initial data
+    // This effect runs once to load initial data.
     useEffect(() => {
-        loadOptions() // This line loads case and fir options
-        loadReports() // This line loads reports
+        loadOptions()
+        loadReports()
     }, [])
 
-    // This function changes one form field
+    // This function changes one form field.
     const handleFormChange = (field, value) => {
-        setForm((current) => ({ ...current, [field]: value })) // This line updates one form value
+        const updatedForm = {
+            title: form.title,
+            content: form.content,
+            status: form.status,
+            caseId: form.caseId,
+            firId: form.firId
+        }
+
+        updatedForm[field] = value
+        setForm(updatedForm)
     }
 
-    // This function clears form and edit mode
+    // This function clears form and edit mode.
     const resetForm = () => {
-        setForm(emptyForm) // This line resets form values
-        setEditId('') // This line exits edit mode
+        setForm(emptyForm)
+        setEditId('')
     }
 
-    // This function saves new report or updates report
+    // This function asks backend AI to make a clean crime report from raw notes.
+    const handleGenerateReport = async () => {
+        setMessage('')
+        setError('')
+
+        // AI needs some notes before it can create a useful report.
+        if (!aiNotes.trim()) {
+            setError('Please enter crime notes before generating report')
+            return
+        }
+
+        setAiLoading(true)
+
+        try {
+            // Send raw notes to the backend AI report route.
+            const response = await API.post('/ai/generate-report', { text: aiNotes.trim() })
+
+            // Read generated title and content safely from backend response.
+            const generatedTitle = response.data.title || 'AI Crime Report'
+            const generatedContent = response.data.content || ''
+
+            // Stop here if AI did not return report text.
+            if (!generatedContent) {
+                setError('AI did not return report content')
+                return
+            }
+
+            // Put AI output into the normal report form for review and saving.
+            setForm({
+                title: generatedTitle,
+                content: generatedContent,
+                status: 'draft',
+                caseId: form.caseId,
+                firId: form.firId
+            })
+
+            setEditId('')
+            setMessage('AI report generated. Please review it before saving.')
+        } catch (requestError) {
+            setError(getApiErrorMessage(requestError, 'Unable to generate AI report'))
+        } finally {
+            setAiLoading(false)
+        }
+    }
+
+    // This function saves new report or updates report.
     const handleSubmit = async (event) => {
-        event.preventDefault() // This line stops page refresh
-        setMessage('') // This line clears old success message
-        setError('') // This line clears old error message
+        event.preventDefault()
+        setMessage('')
+        setError('')
 
         if (!form.title || !form.content) {
-            setError('Please enter report title and report content') // This line checks required fields
-            return // This line stops save when required fields are missing
+            setError('Please enter report title and report content')
+            return
         }
 
         const payload = {
-            title: form.title, // This line sends report title
-            content: form.content, // This line sends report content
-            status: form.status, // This line sends report status
-            caseId: form.caseId || undefined, // This line sends case id when selected
-            firId: form.firId || undefined // This line sends fir id when selected
+            title: form.title,
+            content: form.content,
+            status: form.status,
+            caseId: form.caseId || undefined,
+            firId: form.firId || undefined
         }
 
-        setSaving(true) // This line starts saving state
+        setSaving(true)
 
         try {
             if (editId) {
-                await API.put(`/reports/${editId}`, payload) // This line updates selected report
-                setMessage('Report updated successfully') // This line shows update success
+                await API.put(`/reports/${editId}`, payload)
+                setMessage('Report updated successfully')
             } else {
-                await API.post('/reports', payload) // This line creates new report
-                setMessage('Report created successfully') // This line shows create success
+                await API.post('/reports', payload)
+                setMessage('Report created successfully')
             }
 
-            resetForm() // This line clears form
-            loadReports() // This line reloads report list
+            resetForm()
+            loadReports()
         } catch (requestError) {
-            setError(requestError.response?.data?.message || 'Unable to save report') // This line shows save error
+            setError(getApiErrorMessage(requestError, 'Unable to save report'))
         } finally {
-            setSaving(false) // This line stops saving state
+            setSaving(false)
         }
     }
 
-    // This function fills form with selected report data
+    // This function fills form with selected report data.
     const startEdit = (report) => {
-        setEditId(report._id) // This line stores selected report id
+        let caseId = ''
+        let firId = ''
+
+        if (report.caseId && report.caseId._id) {
+            caseId = report.caseId._id
+        }
+
+        if (report.firId && report.firId._id) {
+            firId = report.firId._id
+        }
+
+        setEditId(report._id)
         setForm({
-            title: report.title || '', // This line fills report title
-            content: report.content || '', // This line fills report content
-            status: report.status || 'draft', // This line fills report status
-            caseId: report.caseId?._id || '', // This line fills linked case id
-            firId: report.firId?._id || '' // This line fills linked fir id
+            title: report.title || '',
+            content: report.content || '',
+            status: report.status || 'draft',
+            caseId,
+            firId
         })
     }
 
-    // This function deletes selected report
+    // This function deletes selected report.
     const deleteReport = async (report) => {
-        const isOwner = report.createdBy?._id === user?.id // This line checks report owner
+        let isOwner = false
 
-        if (!isAdmin && !isOwner) {
-            setError('Only owner or admin can delete this report') // This line blocks unauthorized delete
-            return // This line stops delete request
+        if (report.createdBy && report.createdBy._id === userId) {
+            isOwner = true
         }
 
-        const confirmed = window.confirm('Do you want to delete this report') // This line asks confirmation
-        if (!confirmed) return // This line stops delete when user cancels
+        if (!isAdmin && !isOwner) {
+            setError('Only owner or admin can delete this report')
+            return
+        }
+
+        const confirmed = window.confirm('Do you want to delete this report')
+
+        if (!confirmed) {
+            return
+        }
 
         try {
-            await API.delete(`/reports/${report._id}`) // This line sends delete request
-            setMessage('Report deleted successfully') // This line shows delete success
-            loadReports() // This line refreshes report list
+            await API.delete(`/reports/${report._id}`)
+            setMessage('Report deleted successfully')
+            loadReports()
         } catch (requestError) {
-            setError(requestError.response?.data?.message || 'Unable to delete report') // This line shows delete error
+            setError(getApiErrorMessage(requestError, 'Unable to delete report'))
         }
     }
 
-    return (
-        <div className="app-layout"> {/* This line renders app layout wrapper */}
-            <Sidebar /> {/* This line renders left navigation menu */}
-            <main className="main-panel"> {/* This line renders main content area */}
-                <Navbar title="Reports" /> {/* This line renders page title bar */}
+    // This line keeps the save button text simple.
+    let saveButtonText = 'Create Report'
+    let formTitle = 'Create Report'
 
-                <section className="content-section"> {/* This line renders reports page section */}
-                    <div className="section-header"> {/* This line renders section heading row */}
+    if (saving) {
+        saveButtonText = 'Saving'
+    } else if (editId) {
+        saveButtonText = 'Update Report'
+        formTitle = 'Edit Report'
+    }
+
+    // This line keeps the AI generate button text simple.
+    let generateButtonText = 'Generate AI Report'
+
+    if (aiLoading) {
+        generateButtonText = 'Generating'
+    }
+
+    return (
+        <div className="app-layout">
+            <Sidebar />
+            <main className="main-panel">
+                <Navbar title="Reports" />
+
+                <section className="content-section">
+                    <div className="section-header">
                         <div>
-                            <p className="eyebrow">Investigation Reports</p> {/* This line shows small section label */}
-                            <h2>Reports</h2> {/* This line shows main section title */}
+                            <p className="eyebrow">Investigation Reports</p>
+                            <h2>Reports</h2>
                         </div>
-                        <span className="count-pill">{reports.length} total</span> {/* This line shows total report count */}
+                        <span className="count-pill">{reports.length} total</span>
                     </div>
 
-                    <form className="form-card" onSubmit={handleSubmit}> {/* This line renders create and edit form */}
-                        <p className="eyebrow">{editId ? 'Edit Report' : 'Create Report'}</p> {/* This line shows form mode */}
+                    {canUseAI && (
+                        <section className="form-card case-filter-card">
+                            <p className="eyebrow">ATS Friendly AI Report</p>
+                            <label>
+                                Raw Crime Notes
+                                <textarea
+                                    value={aiNotes}
+                                    onChange={(event) => setAiNotes(event.target.value)}
+                                    placeholder="Paste victim suspect location evidence and officer notes"
+                                    rows="6"
+                                />
+                            </label>
+                            <div className="card-actions">
+                                <button
+                                    className="btn btn-primary"
+                                    type="button"
+                                    onClick={handleGenerateReport}
+                                    disabled={aiLoading || !aiNotes.trim()}
+                                >
+                                    {generateButtonText}
+                                </button>
+                                <button className="btn btn-secondary" type="button" onClick={() => setAiNotes('')}>
+                                    Clear Notes
+                                </button>
+                            </div>
+                        </section>
+                    )}
+
+                    <form className="form-card" onSubmit={handleSubmit}>
+                        <p className="eyebrow">{formTitle}</p>
                         <label>
                             Report Title
-                            <input value={form.title} onChange={(event) => handleFormChange('title', event.target.value)} placeholder="Enter report title" />
+                            <input
+                                value={form.title}
+                                onChange={(event) => handleFormChange('title', event.target.value)}
+                                placeholder="Enter report title"
+                            />
                         </label>
                         <label>
                             Report Content
-                            <textarea value={form.content} onChange={(event) => handleFormChange('content', event.target.value)} placeholder="Write report details" rows="7" />
+                            <textarea
+                                value={form.content}
+                                onChange={(event) => handleFormChange('content', event.target.value)}
+                                placeholder="Write report details"
+                                rows="7"
+                            />
                         </label>
                         <div className="filter-row case-filter-grid">
                             <label>
@@ -202,22 +368,28 @@ function Reports() {
                                 </select>
                             </label>
                         </div>
-                        <div className="card-actions"> {/* This line renders form action buttons */}
-                            <button className="btn btn-primary" type="submit" disabled={saving}>{saving ? 'Saving' : editId ? 'Update Report' : 'Create Report'}</button> {/* This line saves report */}
-                            {editId && <button className="btn btn-secondary" type="button" onClick={resetForm}>Cancel Edit</button>} {/* This line cancels edit mode */}
+                        <div className="card-actions">
+                            <button className="btn btn-primary" type="submit" disabled={saving}>
+                                {saveButtonText}
+                            </button>
+                            {editId && (
+                                <button className="btn btn-secondary" type="button" onClick={resetForm}>
+                                    Cancel Edit
+                                </button>
+                            )}
                         </div>
                     </form>
 
-                    {message && <div className="analysis-result"><p>{message}</p></div>} {/* This line shows success message */}
-                    {error && <div className="analysis-error"><p>{error}</p></div>} {/* This line shows error message */}
-                    {loading && <div className="empty-state"><Loader /></div>} {/* This line shows loading state */}
-                    {!loading && reports.length === 0 && <div className="empty-state">No reports found</div>} {/* This line shows empty state */}
+                    {message && <div className="analysis-result"><p>{message}</p></div>}
+                    {error && <div className="analysis-error"><p>{error}</p></div>}
+                    {loading && <div className="empty-state"><Loader /></div>}
+                    {!loading && reports.length === 0 && <div className="empty-state">No reports found</div>}
 
                     {!loading && reports.length > 0 && (
-                        <div className="fir-grid"> {/* This line renders report cards grid */}
+                        <div className="fir-grid">
                             {reports.map((report) => (
-                                <article key={report._id} className="fir-card"> {/* This line renders one report card */}
-                                    <div className="fir-card-header"> {/* This line renders report card header */}
+                                <article key={report._id} className="fir-card">
+                                    <div className="fir-card-header">
                                         <div>
                                             <p className="eyebrow">Report Record</p>
                                             <h3>{report.title}</h3>
@@ -227,19 +399,23 @@ function Reports() {
                                     <p className="fir-description">{report.content}</p>
                                     <div className="fir-meta">
                                         <span>Case</span>
-                                        <strong>{report.caseId?.title || 'No case linked'}</strong>
+                                        <strong>{getCaseTitle(report)}</strong>
                                     </div>
                                     <div className="fir-meta">
                                         <span>FIR</span>
-                                        <strong>{report.firId?.title || 'No fir linked'}</strong>
+                                        <strong>{getFIRTitle(report)}</strong>
                                     </div>
                                     <div className="fir-meta">
                                         <span>Created By</span>
-                                        <strong>{report.createdBy?.name || 'Unknown user'}</strong>
+                                        <strong>{getCreatorName(report)}</strong>
                                     </div>
-                                    <div className="card-actions"> {/* This line renders report card action buttons */}
-                                        <button className="btn btn-secondary" type="button" onClick={() => startEdit(report)}>Edit</button> {/* This line starts edit mode */}
-                                        <button className="btn btn-danger" type="button" onClick={() => deleteReport(report)}>Delete</button> {/* This line deletes report */}
+                                    <div className="card-actions">
+                                        <button className="btn btn-secondary" type="button" onClick={() => startEdit(report)}>
+                                            Edit
+                                        </button>
+                                        <button className="btn btn-danger" type="button" onClick={() => deleteReport(report)}>
+                                            Delete
+                                        </button>
                                     </div>
                                 </article>
                             ))}
@@ -251,4 +427,4 @@ function Reports() {
     )
 }
 
-export default Reports // This line exports report page
+export default Reports

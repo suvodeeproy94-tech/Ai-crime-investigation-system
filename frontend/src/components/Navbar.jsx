@@ -7,6 +7,13 @@ function Navbar({ title = 'Dashboard' }) {
     // This line reads current theme value and toggle function from theme context
     const { theme, toggleTheme } = useTheme()
 
+    // This line stores the button text for the current theme
+    let themeButtonText = 'Use Dark Mode'
+
+    if (theme === 'dark') {
+        themeButtonText = 'Use Light Mode'
+    }
+
     // This line returns the heading area and online status
     return (
         // Main top navigation bar
@@ -23,7 +30,7 @@ function Navbar({ title = 'Dashboard' }) {
                 {/* This button switches between light mode and dark mode */}
                 <button className="btn btn-secondary theme-btn" onClick={toggleTheme}>
                     {/* This text changes based on current selected theme */}
-                    {theme === 'dark' ? 'Use Light Mode' : 'Use Dark Mode'}
+                    {themeButtonText}
                 </button>
                 {/* This is the right side shows a simple online status */}
                 <div className="status-pill">

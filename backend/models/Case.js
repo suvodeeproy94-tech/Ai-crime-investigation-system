@@ -17,6 +17,16 @@ const caseSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    // This part keeps map latitude for crime location
+    latitude: {
+        type: Number,
+        default: null
+    },
+    // This part keeps map longitude for crime location
+    longitude: {
+        type: Number,
+        default: null
+    },
     // This part keeps the investigation status
     status: {
         type: String,

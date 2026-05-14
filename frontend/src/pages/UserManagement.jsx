@@ -1,15 +1,21 @@
 // This file shows the admin user management page
 // This page shows admins police and users in read only mode
 import { useEffect, useState } from 'react' // This line imports hooks for state and loading
-import API from '../services/apiClient' // This line imports the shared API client
+import API, { getApiErrorMessage } from '../services/apiClient' // This line imports the shared API client
 import Navbar from '../components/Navbar' // This line imports the top page bar
 import Sidebar from '../components/Sidebar' // This line imports the left menu
 import Loader from '../components/Loader' // This line imports the shared loading logo component
 
 // This function shows role names in simple text
 const getRoleName = (role) => {
-    if (role === 'admin') return 'Admin' // This line shows admin role name
-    if (role === 'police') return 'Police' // This line shows police role name
+    if (role === 'admin') {
+        return 'Admin'
+    }
+
+    if (role === 'police') {
+        return 'Police'
+    }
+
     return 'User' // This line shows user role name
 }
 
@@ -25,10 +31,10 @@ function UserManagement() {
         setError('') // This line clears old error
 
         try {
-            const res = await API.get('/users') // This line asks backend for user list
-            setUsers(res.data || []) // This line saves the user list
+            const response = await API.get('/users') // This line asks backend for user list
+            setUsers(response.data || []) // This line saves the user list
         } catch (requestError) {
-            setError(requestError.response?.data?.message || 'Unable to load users') // This line shows request error
+            setError(getApiErrorMessage(requestError, 'Unable to load users')) // This line shows request error
         } finally {
             setLoading(false) // This line stops loading
         }
@@ -57,7 +63,9 @@ function UserManagement() {
 
                     {error && <div className="analysis-error"><p>{error}</p></div>} {/* This line shows error message */}
                     {loading && <div className="empty-state"><Loader /></div>} {/* This line shows loading state */}
-                    {!loading && users.length === 0 && <div className="empty-state">No users found</div>} {/* This line shows empty state */}
+                    {!loading && users.length === 0 && (
+                        <div className="empty-state">No users found</div>
+                    )}
 
                     {/* This part shows every account as a simple card */}
                     {!loading && users.length > 0 && (

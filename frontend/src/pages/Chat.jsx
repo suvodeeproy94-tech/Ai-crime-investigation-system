@@ -1,8 +1,8 @@
 // This file shows a simple chat page where logged in users can chat with allowed roles.
-// This line imports hooks for state, effects, and memoized values.
-import { useEffect, useMemo, useState } from 'react'
+// This line imports hooks for state and effects.
+import { useEffect, useState } from 'react'
 // This line imports shared API client for backend calls.
-import API from '../services/apiClient'
+import API, { getApiErrorMessage } from '../services/apiClient'
 // This line imports top navigation component.
 import Navbar from '../components/Navbar'
 // This line imports sidebar navigation component.
@@ -11,11 +11,19 @@ import Sidebar from '../components/Sidebar'
 import Loader from '../components/Loader'
 // This line imports auth hook so we can know current user id.
 import useAuth from '../hooks/useAuth'
+// This line imports socket helpers for live chat updates.
+import { getSocket, joinUserRoom } from '../services/socketClient'
 
 // This part renders the chat page content.
 function Chat() {
     // This line reads current logged in user data from auth context.
     const { user } = useAuth()
+    // This line stores current user id safely.
+    let currentUserId = ''
+
+    if (user && user.id) {
+        currentUserId = user.id
+    }
     // This line stores users that current user can chat with.
     const [chatUsers, setChatUsers] = useState([])
     // This line stores selected chat user id.
@@ -31,8 +39,16 @@ function Chat() {
     // This line stores any error message for user feedback.
     const [error, setError] = useState('')
 
-    // This line finds selected user object for display based on selected id.
-    const selectedUser = useMemo(() => chatUsers.find((item) => item._id === selectedUserId), [chatUsers, selectedUserId])
+    // This helper finds selected user object for display based on selected id.
+    const getSelectedUser = () => {
+        for (const item of chatUsers) {
+            if (item._id === selectedUserId) {
+                return item
+            }
+        }
+
+        return null
+    }
 
     // This effect loads allowed chat users once when page opens.
     useEffect(() => {
@@ -42,14 +58,16 @@ function Chat() {
             setError('')
             try {
                 // This line calls backend to get allowed users list.
-                const res = await API.get('/chat/users')
+                const response = await API.get('/chat/users')
                 // This line saves allowed users to state.
-                setChatUsers(res.data || [])
+                setChatUsers(response.data || [])
                 // This line selects first user by default when list is not empty.
-                if (res.data?.length) setSelectedUserId(res.data[0]._id)
-            } catch (err) {
+                if (response.data && response.data.length > 0) {
+                    setSelectedUserId(response.data[0]._id)
+                }
+            } catch (requestError) {
                 // This line saves readable error message when request fails.
-                setError(err.response?.data?.message || 'Unable to load chat users')
+                setError(getApiErrorMessage(requestError, 'Unable to load chat users'))
             } finally {
                 // This line marks user loading as complete.
                 setLoadingUsers(false)
@@ -62,7 +80,9 @@ function Chat() {
     // This effect loads conversation whenever selected user changes.
     useEffect(() => {
         // This line stops effect when no user is selected.
-        if (!selectedUserId) return
+        if (!selectedUserId) {
+            return
+        }
         // This async function requests messages for selected user.
         const loadMessages = async () => {
             // This line clears old error before request.
@@ -71,12 +91,12 @@ function Chat() {
             setLoadingMessages(true)
             try {
                 // This line calls backend to get message history.
-                const res = await API.get(`/chat/${selectedUserId}`)
+                const response = await API.get(`/chat/${selectedUserId}`)
                 // This line saves fetched messages to state.
-                setMessages(res.data || [])
-            } catch (err) {
+                setMessages(response.data || [])
+            } catch (requestError) {
                 // This line saves readable error message when request fails.
-                setError(err.response?.data?.message || 'Unable to load messages')
+                setError(getApiErrorMessage(requestError, 'Unable to load messages'))
             } finally {
                 // This line marks message loading as complete.
                 setLoadingMessages(false)
@@ -85,11 +105,54 @@ function Chat() {
         // This line starts message loading.
         loadMessages()
 
-        // This timer refreshes conversation every 4 seconds for simple near real time chat.
-        const intervalId = setInterval(loadMessages, 4000)
-        // This cleanup removes timer when selected user changes or page closes.
-        return () => clearInterval(intervalId)
     }, [selectedUserId])
+
+    // This effect listens for live chat messages from Socket.io.
+    useEffect(() => {
+        // This check joins private socket room for the logged in user.
+        if (currentUserId) {
+            joinUserRoom(currentUserId)
+        }
+
+        const socket = getSocket() // This line gets shared socket connection.
+
+        // This function adds a new message when it belongs to the open chat.
+        const handleNewMessage = (newMessage) => {
+            const senderId = String(newMessage.sender)
+            const receiverId = String(newMessage.receiver)
+            const selectedId = String(selectedUserId)
+            const myId = String(currentUserId)
+
+            // This check accepts messages between current user and selected user only.
+            const isOpenConversation =
+                (senderId === selectedId && receiverId === myId) ||
+                (senderId === myId && receiverId === selectedId)
+
+            if (!isOpenConversation) {
+                return
+            }
+
+            // This function avoids adding the same message twice.
+            setMessages((currentMessages) => {
+                for (const message of currentMessages) {
+                    if (message._id === newMessage._id) {
+                        return currentMessages
+                    }
+                }
+
+                const updatedMessages = currentMessages.slice()
+                updatedMessages.push(newMessage)
+                return updatedMessages
+            })
+        }
+
+        socket.on('newMessage', handleNewMessage)
+
+        // This cleanup removes socket listener when chat changes or page closes.
+        return () => {
+            socket.off('newMessage', handleNewMessage)
+        }
+    }, [currentUserId, selectedUserId])
 
     // This function sends one message to the selected user.
     const handleSendMessage = async (event) => {
@@ -98,20 +161,66 @@ function Chat() {
         // This line clears old error before send request.
         setError('')
         // This line stops sending when no user is selected.
-        if (!selectedUserId) return
+        if (!selectedUserId) {
+            return
+        }
         // This line stops sending empty message text.
-        if (!messageText.trim()) return
+        if (!messageText.trim()) {
+            return
+        }
         try {
             // This line sends new message text to backend.
-            const res = await API.post(`/chat/${selectedUserId}`, { text: messageText })
-            // This line appends newly sent message to local list.
-            setMessages((current) => [...current, res.data])
+            const response = await API.post(`/chat/${selectedUserId}`, { text: messageText })
+            // This part appends newly sent message only when socket did not add it already.
+            setMessages((currentMessages) => {
+                for (const message of currentMessages) {
+                    if (message._id === response.data._id) {
+                        return currentMessages
+                    }
+                }
+
+                const updatedMessages = currentMessages.slice()
+                updatedMessages.push(response.data)
+                return updatedMessages
+            })
             // This line clears input field after successful send.
             setMessageText('')
-        } catch (err) {
+        } catch (requestError) {
             // This line saves readable error message when send fails.
-            setError(err.response?.data?.message || 'Unable to send message')
+            setError(getApiErrorMessage(requestError, 'Unable to send message'))
         }
+    }
+
+    // This line stores selected user for the page title
+    const selectedUser = getSelectedUser()
+
+    // This helper returns class name for one chat user button
+    const getChatUserClass = (chatUser) => {
+        let className = 'chat-user-btn'
+
+        if (selectedUserId === chatUser._id) {
+            className = 'chat-user-btn active'
+        }
+
+        return className
+    }
+
+    // This helper returns the selected conversation title
+    const getConversationTitle = () => {
+        if (selectedUser) {
+            return `Chat with ${selectedUser.name}`
+        }
+
+        return 'Select a user'
+    }
+
+    // This helper returns class name for one chat message
+    const getMessageClass = (message) => {
+        if (String(message.sender) === String(currentUserId)) {
+            return 'chat-message mine'
+        }
+
+        return 'chat-message theirs'
     }
 
     // This line returns full page layout for chat feature.
@@ -160,7 +269,7 @@ function Chat() {
                                 {chatUsers.map((chatUser) => (
                                     <button
                                         key={chatUser._id}
-                                        className={`chat-user-btn ${selectedUserId === chatUser._id ? 'active' : ''}`}
+                                        className={getChatUserClass(chatUser)}
                                         onClick={() => setSelectedUserId(chatUser._id)}
                                     >
                                         <strong>{chatUser.name}</strong>
@@ -173,7 +282,7 @@ function Chat() {
                             <div className="chat-window">
                                 {/* This line renders current conversation title */}
                                 <div className="chat-window-head">
-                                    <strong>{selectedUser ? `Chat with ${selectedUser.name}` : 'Select a user'}</strong>
+                                    <strong>{getConversationTitle()}</strong>
                                 </div>
 
                                 {/* This line renders message list area */}
@@ -186,7 +295,7 @@ function Chat() {
                                     {messages.map((message) => (
                                         <div
                                             key={message._id}
-                                            className={`chat-message ${String(message.sender) === String(user?.id) ? 'mine' : 'theirs'}`}
+                                            className={getMessageClass(message)}
                                         >
                                             <p>{message.text}</p>
                                         </div>

@@ -5,7 +5,13 @@ const AILog = require('../models/AILog') // This line imports AILog model
 // This part returns ai logs with simple role based filter
 exports.getAllAILogs = async (req, res) => {
     try {
-        const query = req.user.role === 'admin' ? {} : { requestedBy: req.user.id } // This line keeps admin logs full and other users own only
+        // Admin can see every AI log, other users see only their own logs.
+        let query = {}
+
+        if (req.user.role !== 'admin') {
+            query = { requestedBy: req.user.id }
+        }
+
         const logs = await AILog.find(query) // This line loads log records
             .populate('requestedBy', 'name email role') // This line adds requester user details
             .sort({ createdAt: -1 }) // This line keeps latest logs first

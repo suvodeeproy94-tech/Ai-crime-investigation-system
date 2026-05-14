@@ -9,18 +9,13 @@ const path = require('path')
 const auth = require('../middleware/authMiddleware')
 // This line imports role middleware for role based access checks.
 const authorize = require('../middleware/roleMiddleware')
-const {
-    // This line handles creating new evidence.
-    createEvidence,
-    // This line handles reading evidence list.
-    getAllEvidence,
-    // This line handles reading one evidence item.
-    getEvidenceById,
-    // This line handles updating one evidence item.
-    updateEvidence,
-    // This line handles deleting one evidence item.
-    deleteEvidence
 // This line imports evidence controller functions.
+const {
+    createEvidence,
+    getAllEvidence,
+    getEvidenceById,
+    updateEvidence,
+    deleteEvidence
 } = require('../controllers/evidenceController')
 
 // This line creates a new router object.
@@ -51,9 +46,18 @@ const upload = multer({
     // This function allows only selected file types.
     fileFilter: (req, file, cb) => {
         // This line lists allowed file mime types.
-        const allowed = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf', 'video/mp4', 'video/quicktime']
+        const allowed = [
+            'image/jpeg',
+            'image/png',
+            'image/jpg',
+            'application/pdf',
+            'video/mp4',
+            'video/quicktime'
+        ]
+
         if (!allowed.includes(file.mimetype)) {
-            return cb(new Error('Only image video and PDF files are allowed')) // This line rejects wrong file type
+            // This line rejects wrong file type.
+            return cb(new Error('Only image video and PDF files are allowed'))
         }
 
         cb(null, true) // This line accepts valid file type
@@ -79,7 +83,6 @@ router.get('/', auth, getAllEvidence)
 router.get('/:id', auth, getEvidenceById)
 // This route updates one evidence item and optional replacement file.
 router.put('/:id', auth, authorize('police', 'admin'), uploadEvidenceFile, updateEvidence)
-// This route deletes one evidence item by id.
 // This route deletes one evidence item and only admin can use it
 router.delete('/:id', auth, authorize('admin'), deleteEvidence)
 

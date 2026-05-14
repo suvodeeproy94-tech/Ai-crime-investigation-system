@@ -29,9 +29,9 @@ function FIRList() {
         // Always stops loading after the request attempt finishes
         try {
             // Requests the FIR list from the API
-            const res = await API.get('/fir')
+            const response = await API.get('/fir')
             // This part keeps the returned FIR array in state
-            setFirs(res.data)
+            setFirs(response.data)
         } finally {
             // Hides the loading message after the request finishes
             setLoading(false)
@@ -73,13 +73,45 @@ function FIRList() {
         fetchFIRs()
     }
 
-    const filteredFIRs = firs.filter((fir) => {
-        const matchesStatus = statusFilter ? fir.status === statusFilter : true
-        const matchesText = searchText
-            ? [fir.title, fir.description, fir.location].some((field) => field?.toLowerCase().includes(searchText.toLowerCase()))
-            : true
-        return matchesStatus && matchesText
-    })
+    // This function returns FIR records after applying simple filters
+    const getFilteredFIRs = () => {
+        const filteredItems = []
+
+        for (const fir of firs) {
+            let matchesStatus = true
+
+            if (statusFilter) {
+                matchesStatus = fir.status === statusFilter
+            }
+
+            let matchesText = true
+
+            if (searchText) {
+                const lowerSearchText = searchText.toLowerCase()
+                const title = fir.title || ''
+                const description = fir.description || ''
+                const location = fir.location || ''
+                const fullText = `${title} ${description} ${location}`.toLowerCase()
+
+                matchesText = fullText.includes(lowerSearchText)
+            }
+
+            if (matchesStatus && matchesText) {
+                filteredItems.push(fir)
+            }
+        }
+
+        return filteredItems
+    }
+
+    // This line stores the current role safely
+    let userRole = ''
+
+    if (user && user.role) {
+        userRole = user.role
+    }
+    // This line stores FIR records after search and status filters
+    const filteredFIRs = getFilteredFIRs()
 
     // This line returns the FIR list section
     return (
@@ -102,13 +134,13 @@ function FIRList() {
                     Search
                     <input
                         value={searchText}
-                        onChange={(e) => setSearchText(e.target.value)}
+                        onChange={(event) => setSearchText(event.target.value)}
                         placeholder="Search by title, location, or description"
                     />
                 </label>
                 <label>
                     Status
-                    <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                    <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
                         <option value="">All statuses</option>
                         <option value="pending">Pending</option>
                         <option value="investigating">Investigating</option>
@@ -135,7 +167,7 @@ function FIRList() {
                 {/* This creates one card for each FIR record */}
                 {filteredFIRs.map(fir => (
                     // This part sends FIR data and action handlers into the card
-                    <FIRCard key={fir._id} fir={fir} onEdit={handleEdit} onDelete={handleDelete} role={user?.role} />
+                    <FIRCard key={fir._id} fir={fir} onEdit={handleEdit} onDelete={handleDelete} role={userRole} />
                 ))}
             </div>
         </section>

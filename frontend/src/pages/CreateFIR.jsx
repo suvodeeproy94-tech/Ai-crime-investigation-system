@@ -2,7 +2,7 @@
 // This line imports useState for managing form input
 import { useState } from 'react'
 // This line imports the shared API client for backend requests
-import API from '../services/apiClient'
+import API, { getApiErrorMessage } from '../services/apiClient'
 // This line imports the shared top bar
 import Navbar from '../components/Navbar'
 // This line imports the shared sidebar navigation
@@ -21,21 +21,56 @@ function CreateFIR() {
     })
 
     // This function updates the matching form field when an input changes
-    const handleChange = (e) => {
-        // This line copies the old form and replaces only the changed field
-        setForm({ ...form, [e.target.name]: e.target.value })
+    const handleChange = (event) => {
+        // This line reads the changed input name
+        const fieldName = event.target.name
+
+        // This line reads the changed input value
+        const fieldValue = event.target.value
+
+        // This part updates title
+        if (fieldName === 'title') {
+            setForm({
+                title: fieldValue,
+                description: form.description,
+                location: form.location
+            })
+        }
+
+        // This part updates description
+        if (fieldName === 'description') {
+            setForm({
+                title: form.title,
+                description: fieldValue,
+                location: form.location
+            })
+        }
+
+        // This part updates location
+        if (fieldName === 'location') {
+            setForm({
+                title: form.title,
+                description: form.description,
+                location: fieldValue
+            })
+        }
     }
 
     // This part sends the form data to the backend as a complaint
-    const handleSubmit = async (e) => {
+    const handleSubmit = async (event) => {
         // This step stops the browser from refreshing the page
-        e.preventDefault()
-        // This part creates the complaint through the backend API
-        await API.post('/complaints', form)
-        // Tells the user that the complaint was created
-        alert('Complaint created')
-        // Clears the form after successful creation
-        setForm({ title: '', description: '', location: '' })
+        event.preventDefault()
+        try {
+            // This part creates the complaint through the backend API
+            await API.post('/complaints', form)
+            // Tells the user that the complaint was created
+            alert('Complaint created')
+            // Clears the form after successful creation
+            setForm({ title: '', description: '', location: '' })
+        } catch (error) {
+            // This line shows a simple complaint error
+            alert(getApiErrorMessage(error, 'Complaint creation failed'))
+        }
     }
 
     // This line returns the create complaint page layout
@@ -76,7 +111,13 @@ function CreateFIR() {
                         <label>
                             Description
                             {/* This keeps the incident details entered by the user */}
-                            <textarea name="description" value={form.description} onChange={handleChange} placeholder="Describe the incident" rows="6" />
+                            <textarea
+                                name="description"
+                                value={form.description}
+                                onChange={handleChange}
+                                placeholder="Describe the incident"
+                                rows="6"
+                            />
                         </label>
 
                         {/* This is the location input field */}

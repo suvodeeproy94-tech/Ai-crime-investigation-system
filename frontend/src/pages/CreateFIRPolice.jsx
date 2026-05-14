@@ -1,6 +1,6 @@
 // This page lets police create a new FIR from an existing complaint.
 import { useEffect, useState } from 'react' // This line imports state and effect hooks
-import API from '../services/apiClient' // This line imports shared api client
+import API, { getApiErrorMessage } from '../services/apiClient' // This line imports shared api client
 import Navbar from '../components/Navbar' // This line imports top bar
 import Sidebar from '../components/Sidebar' // This line imports left menu
 
@@ -17,10 +17,19 @@ function CreateFIRPolice() {
         // This function loads complaints from backend
         const loadComplaints = async () => {
             try {
-                const res = await API.get('/complaints') // This line requests complaint list
-                setComplaints(res.data.filter((item) => !item.firCreated)) // This line keeps complaints without fir
-            } catch (err) {
-                setError(err.response?.data?.message || 'Failed to load complaints') // This line shows loading error
+                const response = await API.get('/complaints') // This line requests complaint list
+                const openComplaints = [] // This list stores complaints that do not have FIR yet
+
+                // This loop keeps only complaints without FIR
+                for (const item of response.data) {
+                    if (!item.firCreated) {
+                        openComplaints.push(item)
+                    }
+                }
+
+                setComplaints(openComplaints) // This line saves complaints without FIR
+            } catch (requestError) {
+                setError(getApiErrorMessage(requestError, 'Failed to load complaints')) // This line shows loading error
             }
         }
         loadComplaints() // This line starts complaint loading
@@ -28,7 +37,15 @@ function CreateFIRPolice() {
 
     // This effect fills form when one complaint is selected
     useEffect(() => {
-        const complaint = complaints.find((item) => item._id === selectedComplaintId) // This line finds selected complaint
+        let complaint = null // This line stores selected complaint when found
+
+        // This loop finds selected complaint
+        for (const item of complaints) {
+            if (item._id === selectedComplaintId) {
+                complaint = item
+            }
+        }
+
         if (complaint) {
             setForm({
                 title: complaint.title || '', // This line sets title from complaint
@@ -39,13 +56,41 @@ function CreateFIRPolice() {
     }, [selectedComplaintId, complaints])
 
     // This function changes one form field
-    const handleChange = (e) => {
-        setForm({ ...form, [e.target.name]: e.target.value }) // This line updates one form input value
+    const handleChange = (event) => {
+        const fieldName = event.target.name // This line reads changed field name
+        const fieldValue = event.target.value // This line reads changed field value
+
+        // This part updates FIR title
+        if (fieldName === 'title') {
+            setForm({
+                title: fieldValue,
+                description: form.description,
+                location: form.location
+            })
+        }
+
+        // This part updates FIR description
+        if (fieldName === 'description') {
+            setForm({
+                title: form.title,
+                description: fieldValue,
+                location: form.location
+            })
+        }
+
+        // This part updates FIR location
+        if (fieldName === 'location') {
+            setForm({
+                title: form.title,
+                description: form.description,
+                location: fieldValue
+            })
+        }
     }
 
     // This function sends create fir request
-    const handleSubmit = async (e) => {
-        e.preventDefault() // This line stops page refresh
+    const handleSubmit = async (event) => {
+        event.preventDefault() // This line stops page refresh
         setError('') // This line clears old error message
         setSuccess('') // This line clears old success message
 
@@ -64,8 +109,8 @@ function CreateFIRPolice() {
             setSuccess('FIR created successfully') // This line shows success message
             setSelectedComplaintId('') // This line clears selected complaint id
             setForm({ title: '', description: '', location: '' }) // This line clears form after success
-        } catch (err) {
-            setError(err.response?.data?.message || 'Failed to create FIR') // This line shows create error
+        } catch (requestError) {
+            setError(getApiErrorMessage(requestError, 'Failed to create FIR')) // This line shows create error
         }
     }
 
@@ -88,7 +133,7 @@ function CreateFIRPolice() {
 
                         <label>
                             Select Complaint
-                            <select value={selectedComplaintId} onChange={(e) => setSelectedComplaintId(e.target.value)}> {/* This line updates selected complaint */}
+                            <select value={selectedComplaintId} onChange={(event) => setSelectedComplaintId(event.target.value)}>
                                 <option value="">Select a complaint</option>
                                 {complaints.map((complaint) => (
                                     <option key={complaint._id} value={complaint._id}>
@@ -101,17 +146,33 @@ function CreateFIRPolice() {
                         <form onSubmit={handleSubmit}>
                             <label>
                                 FIR Title
-                                <input name="title" value={form.title} onChange={handleChange} placeholder="Enter FIR title" /> {/* This line captures fir title */}
+                                <input
+                                    name="title"
+                                    value={form.title}
+                                    onChange={handleChange}
+                                    placeholder="Enter FIR title"
+                                />
                             </label>
 
                             <label>
                                 Description
-                                <textarea name="description" value={form.description} onChange={handleChange} placeholder="Describe the FIR details" rows="6" /> {/* This line captures fir description */}
+                                <textarea
+                                    name="description"
+                                    value={form.description}
+                                    onChange={handleChange}
+                                    placeholder="Describe the FIR details"
+                                    rows="6"
+                                />
                             </label>
 
                             <label>
                                 Location
-                                <input name="location" value={form.location} onChange={handleChange} placeholder="Enter incident location" /> {/* This line captures fir location */}
+                                <input
+                                    name="location"
+                                    value={form.location}
+                                    onChange={handleChange}
+                                    placeholder="Enter incident location"
+                                />
                             </label>
 
                             <button className="btn btn-primary" type="submit">Create FIR</button>

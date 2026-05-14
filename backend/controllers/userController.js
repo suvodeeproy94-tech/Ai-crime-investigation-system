@@ -108,16 +108,16 @@ exports.registerUser = async (req, res) => {
         // This line checks whether an account already exists with the same email
         let user = await User.findOne({ email })
 
+        // This part stops signup when the email is already used
+        if (user) {
+            return res.status(400).json({ message: 'User exists' }) // This line blocks duplicate signup
+        }
+
         // This part creates a salt used for secure password hashing
         const salt = await bcrypt.genSalt(10)
 
         // Hashes the plain password before storing it
         const hashedPassword = await bcrypt.hash(password, salt)
-
-        // This part stops signup when the email is already used
-        if (user) {
-            return res.status(400).json({ message: 'User exists' }) // This line blocks duplicate signup
-        }
 
         // This part creates the user document with normal user role
         user = new User({

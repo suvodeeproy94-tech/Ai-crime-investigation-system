@@ -1,175 +1,326 @@
 // This file handles case operations in the backend.
-// This file creates, reads, updates, and deletes case records.
+// It creates, reads, updates, and deletes case records.
 const Case = require('../models/Case') // This line imports the Case model.
 const Notification = require('../models/Notification') // This line imports the Notification model.
+const { createActivityLog } = require('../utils/activityLogger') // This line imports activity log helper.
+const { sendToAll, sendToUser } = require('../utils/socketHelper') // This line imports socket helpers.
+
+// This helper creates a safe sort object for case lists.
+const getCaseSort = (sortBy, sortOrder) => {
+    // Only these fields are allowed for sorting.
+    const allowedSortFields = ['createdAt', 'status', 'priority', 'title']
+
+    // Use createdAt when the requested sort field is not allowed.
+    let sortField = 'createdAt'
+    if (allowedSortFields.includes(sortBy)) {
+        sortField = sortBy
+    }
+
+    // Use newest first unless the frontend asks for ascending order.
+    let sortDirection = -1
+    if (sortOrder === 'asc') {
+        sortDirection = 1
+    }
+
+    // Build the sort object in a clear step.
+    const sort = {}
+    sort[sortField] = sortDirection
+
+    return sort
+}
+
+// This helper joins the role filter with search filters.
+const buildCaseFilter = (baseFilter, extraFilters) => {
+    // If there are no extra filters, only the role filter is needed.
+    if (extraFilters.length === 0) {
+        return baseFilter
+    }
+
+    // MongoDB needs all filters inside $and when many rules are used together.
+    const allFilters = [baseFilter]
+
+    for (const filter of extraFilters) {
+        allFilters.push(filter)
+    }
+
+    return { $and: allFilters }
+}
 
 // This part creates a new case record.
 exports.createCase = async (req, res) => {
-    // This part builds a new case document from request body and authenticated user information.
-    const newCase = new Case({ ...req.body, filedBy: req.user.id }) // This line spreads request body fields and sets filedBy to current user id.
-    newCase.statusHistory = [{ status: newCase.status || 'open', changedBy: req.user.id }] // This line stores the first case status.
+    // Build the new case data step by step from the request body.
+    const caseData = {
+        title: req.body.title,
+        description: req.body.description,
+        location: req.body.location,
+        latitude: req.body.latitude,
+        longitude: req.body.longitude,
+        status: req.body.status,
+        priority: req.body.priority,
+        assignedTo: req.body.assignedTo,
+        suspects: req.body.suspects,
+        evidence: req.body.evidence,
+        filedBy: req.user.id
+    }
+
+    // Create the case document before saving it to MongoDB.
+    const newCase = new Case(caseData)
+
+    // Store the first status in the status history.
+    newCase.statusHistory = [
+        {
+            status: newCase.status || 'open',
+            changedBy: req.user.id
+        }
+    ]
 
     try {
-        const savedCase = await newCase.save() // save the new case in the database
-        res.json(savedCase) // send the saved case back to the client
+        // Save the new case in the database.
+        const savedCase = await newCase.save()
+
+        // Save an audit log for case creation.
+        await createActivityLog(req, 'create', 'case', `Created case "${savedCase.title}"`, String(savedCase._id))
+
+        // Tell connected users that case data changed.
+        sendToAll(req, 'caseUpdated', savedCase)
+
+        // Send the saved case back to the frontend.
+        res.json(savedCase)
     } catch (error) {
-        res.status(500).json({ error: error.message }) // send server error if save fails
+        // Send a simple server error if saving fails.
+        res.status(500).json({ error: error.message })
     }
 }
 
 // This part returns the case list that the current user can access.
 exports.getAllCases = async (req, res) => {
-    const filter = req.user.role === 'user' ? { filedBy: req.user.id } : {} // regular users only see their own cases staff see all cases
-
     try {
-        // This part reads optional case filter inputs from query string.
-        const { status, priority, q, assignedTo, filedBy, fromDate, toDate, sortBy, sortOrder } = req.query // read all optional query filters
-        const andConditions = [] // store optional conditions in one list
+        // Normal users can only see cases filed by them.
+        let baseFilter = {}
+        if (req.user.role === 'user') {
+            baseFilter = { filedBy: req.user.id }
+        }
 
-        // This part filters cases by status when provided.
+        // Read optional filters from the URL query string.
+        const status = req.query.status
+        const priority = req.query.priority
+        const searchText = req.query.q
+        const assignedTo = req.query.assignedTo
+        const filedBy = req.query.filedBy
+        const fromDate = req.query.fromDate
+        const toDate = req.query.toDate
+        const sortBy = req.query.sortBy
+        const sortOrder = req.query.sortOrder
+
+        // Store all optional filters in one simple list.
+        const extraFilters = []
+
         if (status) {
-            andConditions.push({ status }) // add status condition
+            extraFilters.push({ status })
         }
 
-        // This part filters cases by priority when provided.
         if (priority) {
-            andConditions.push({ priority }) // add priority condition
+            extraFilters.push({ priority })
         }
 
-        // This part filters by assigned officer when provided.
         if (assignedTo) {
-            andConditions.push({ assignedTo }) // add assignedTo condition
+            extraFilters.push({ assignedTo })
         }
 
-        // This part allows staff roles to filter by filedBy user id.
+        // Staff can search by the user who filed the case.
         if (filedBy && req.user.role !== 'user') {
-            andConditions.push({ filedBy }) // add filedBy filter for admin or police
+            extraFilters.push({ filedBy })
         }
 
-        // This part performs free text search across title, description, and location.
-        if (q) {
-            andConditions.push({
+        // Search in title, description, and location when search text is given.
+        if (searchText) {
+            extraFilters.push({
                 $or: [
-                    { title: { $regex: q, $options: 'i' } }, // search title
-                    { description: { $regex: q, $options: 'i' } }, // search description
-                    { location: { $regex: q, $options: 'i' } } // search location
+                    { title: { $regex: searchText, $options: 'i' } },
+                    { description: { $regex: searchText, $options: 'i' } },
+                    { location: { $regex: searchText, $options: 'i' } }
                 ]
             })
         }
 
-        // This part applies date range filter for case creation date.
+        // Add a date filter only when at least one date is given.
         if (fromDate || toDate) {
-            const createdAt = {} // create date filter object
-            if (fromDate) createdAt.$gte = new Date(fromDate) // set lower boundary
-            if (toDate) createdAt.$lte = new Date(toDate) // set upper boundary
-            andConditions.push({ createdAt }) // store date condition
+            const createdAt = {}
+
+            if (fromDate) {
+                createdAt.$gte = new Date(fromDate)
+            }
+
+            if (toDate) {
+                createdAt.$lte = new Date(toDate)
+            }
+
+            extraFilters.push({ createdAt })
         }
 
-        // This part combines base role filter with optional conditions.
-        const finalFilter = andConditions.length > 0 ? { $and: [filter, ...andConditions] } : filter // merge conditions only when needed
+        // Join role rules and search rules into one MongoDB filter.
+        const finalFilter = buildCaseFilter(baseFilter, extraFilters)
 
-        // This part applies simple controlled sorting.
-        const sortField = ['createdAt', 'status', 'priority', 'title'].includes(sortBy) ? sortBy : 'createdAt' // allow only known fields
-        const sortDirection = sortOrder === 'asc' ? 1 : -1 // use descending by default
+        // Build a safe sort object.
+        const sort = getCaseSort(sortBy, sortOrder)
 
-        const cases = await Case.find(finalFilter) // find cases using role and filter conditions
-            .populate('filedBy', 'name email role') // attach filedBy user details
-            .populate('assignedTo', 'name email role') // attach assignedTo user details
-            .populate('suspects', 'name status') // attach suspects details
-            .populate('evidence', 'title status') // attach evidence details
-            .sort({ [sortField]: sortDirection }) // apply sorting to case list
+        // Load cases with useful linked data for the frontend.
+        const cases = await Case.find(finalFilter)
+            .populate('filedBy', 'name email role')
+            .populate('assignedTo', 'name email role')
+            .populate('suspects', 'name status')
+            .populate('evidence', 'title status')
+            .sort(sort)
 
-        res.json(cases) // send case list to client
+        // Send the case list to the frontend.
+        res.json(cases)
     } catch (error) {
-        res.status(500).json({ error: error.message }) // send server error if query fails
+        // Send a simple server error if loading fails.
+        res.status(500).json({ error: error.message })
     }
 }
 
 // This part returns one case by id.
 exports.getCaseById = async (req, res) => {
     try {
-        const caseItem = await Case.findById(req.params.id) // find case by id from request params
-            .populate('filedBy', 'name email role') // attach filedBy user details
-            .populate('assignedTo', 'name email role') // attach assignedTo user details
-            .populate('suspects', 'name status') // attach suspects details
-            .populate('evidence', 'title status') // attach evidence details
+        // Find the case and include related user, suspect, and evidence details.
+        const caseItem = await Case.findById(req.params.id)
+            .populate('filedBy', 'name email role')
+            .populate('assignedTo', 'name email role')
+            .populate('suspects', 'name status')
+            .populate('evidence', 'title status')
 
         if (!caseItem) {
-            return res.status(404).json({ message: 'Case not found' }) // return not found if no case exists
+            return res.status(404).json({ message: 'Case not found' })
         }
 
+        // Normal users may only open their own cases.
         if (req.user.role === 'user' && String(caseItem.filedBy._id) !== req.user.id) {
-            return res.status(403).json({ message: 'Access denied' }) // block access if regular user is not the case owner
+            return res.status(403).json({ message: 'Access denied' })
         }
 
-        res.json(caseItem) // send the found case to client
+        // Send the found case to the frontend.
+        res.json(caseItem)
     } catch (error) {
-        res.status(500).json({ error: error.message }) // send server error if lookup fails
+        // Send a simple server error if lookup fails.
+        res.status(500).json({ error: error.message })
     }
 }
 
 // This part updates allowed fields for one case.
 exports.updateCase = async (req, res) => {
-    const updates = {
-        title: req.body.title, // new title if provided
-        description: req.body.description, // new description if provided
-        location: req.body.location, // new location if provided
-        status: req.body.status, // new status if provided
-        priority: req.body.priority, // new priority if provided
-        assignedTo: req.body.assignedTo, // new assignedTo if provided
-        suspects: req.body.suspects, // new suspects if provided
-        evidence: req.body.evidence // new evidence if provided
-    }
-
-    Object.keys(updates).forEach((key) => {
-        if (updates[key] === undefined) {
-            delete updates[key] // remove undefined fields so they do not overwrite existing values
-        }
-    })
-
     try {
-        const caseItem = await Case.findById(req.params.id) // find the case before updating
+        // Find the case before changing it.
+        const caseItem = await Case.findById(req.params.id)
 
         if (!caseItem) {
-            return res.status(404).json({ message: 'Case not found' }) // return not found if the case does not exist
+            return res.status(404).json({ message: 'Case not found' })
         }
 
-        const originalStatus = caseItem.status // remember old status before update
-        Object.assign(caseItem, updates) // apply allowed updates to the case
+        // Remember the old status so we can add history only when it changes.
+        const oldStatus = caseItem.status
 
-        if (updates.status && updates.status !== originalStatus) {
-            caseItem.statusHistory.push({ status: updates.status, changedBy: req.user.id }) // store status change in history
+        // Update each field only when the frontend sends that field.
+        if (req.body.title !== undefined) {
+            caseItem.title = req.body.title
         }
 
-        const updatedCase = await caseItem.save() // save the updated case
+        if (req.body.description !== undefined) {
+            caseItem.description = req.body.description
+        }
 
-        if (updates.status && updates.status !== originalStatus && String(updatedCase.filedBy) !== req.user.id) {
-            await Notification.create({ // create a notification for the case owner
+        if (req.body.location !== undefined) {
+            caseItem.location = req.body.location
+        }
+
+        if (req.body.latitude !== undefined) {
+            caseItem.latitude = req.body.latitude
+        }
+
+        if (req.body.longitude !== undefined) {
+            caseItem.longitude = req.body.longitude
+        }
+
+        if (req.body.status !== undefined) {
+            caseItem.status = req.body.status
+        }
+
+        if (req.body.priority !== undefined) {
+            caseItem.priority = req.body.priority
+        }
+
+        if (req.body.assignedTo !== undefined) {
+            caseItem.assignedTo = req.body.assignedTo
+        }
+
+        if (req.body.suspects !== undefined) {
+            caseItem.suspects = req.body.suspects
+        }
+
+        if (req.body.evidence !== undefined) {
+            caseItem.evidence = req.body.evidence
+        }
+
+        // Add status history only when the status really changed.
+        const statusChanged = req.body.status !== undefined && req.body.status !== oldStatus
+        if (statusChanged) {
+            caseItem.statusHistory.push({
+                status: req.body.status,
+                changedBy: req.user.id
+            })
+        }
+
+        // Save the updated case.
+        const updatedCase = await caseItem.save()
+
+        // Save an audit log for case update.
+        await createActivityLog(req, 'update', 'case', `Updated case "${updatedCase.title}"`, String(updatedCase._id))
+
+        // Tell connected users that case data changed.
+        sendToAll(req, 'caseUpdated', updatedCase)
+
+        // Tell the case owner when another user changed the case status.
+        if (statusChanged && String(updatedCase.filedBy) !== req.user.id) {
+            const notification = await Notification.create({
                 recipient: updatedCase.filedBy,
                 title: 'Case status updated',
                 message: `Status for case "${updatedCase.title}" changed to ${updatedCase.status}.`,
                 relatedCase: updatedCase._id,
                 createdBy: req.user.id
             })
+
+            // Send live notification to the case owner.
+            sendToUser(req, updatedCase.filedBy, 'newNotification', notification)
         }
 
-        res.json(updatedCase) // send the updated case to client
+        // Send the updated case to the frontend.
+        res.json(updatedCase)
     } catch (error) {
-        res.status(500).json({ error: error.message }) // send server error if update fails
+        // Send a simple server error if update fails.
+        res.status(500).json({ error: error.message })
     }
 }
 
 // This part deletes one case by id.
 exports.deleteCase = async (req, res) => {
     try {
-        const deletedCase = await Case.findByIdAndDelete(req.params.id) // delete case by id
+        // Delete the case by id.
+        const deletedCase = await Case.findByIdAndDelete(req.params.id)
 
         if (!deletedCase) {
-            return res.status(404).json({ message: 'Case not found' }) // return not found if no case was deleted
+            return res.status(404).json({ message: 'Case not found' })
         }
 
-        res.json({ message: 'Case deleted' }) // confirm deletion to client
+        // Save an audit log for case delete.
+        await createActivityLog(req, 'delete', 'case', `Deleted case "${deletedCase.title}"`, String(deletedCase._id))
+
+        // Tell connected users that case data changed.
+        sendToAll(req, 'caseUpdated', deletedCase)
+
+        // Confirm the delete action.
+        res.json({ message: 'Case deleted' })
     } catch (error) {
-        res.status(500).json({ error: error.message }) // send server error if deletion fails
+        // Send a simple server error if deletion fails.
+        res.status(500).json({ error: error.message })
     }
 }

@@ -1,4 +1,4 @@
-// this controller manages notification retrieval and read status updates
+// This file handles notification retrieval and read status updates.
 const Notification = require('../models/Notification') // import the Notification model
 
 // This function returns notifications for logged in user
@@ -39,7 +39,12 @@ exports.markAsRead = async (req, res) => {
 // This function returns unread notification count for logged in user
 exports.getUnreadCount = async (req, res) => {
     try {
-        const count = await Notification.countDocuments({ recipient: req.user.id, read: false }) // count unread notifications for the user
+        // Count unread notifications for the current user.
+        const count = await Notification.countDocuments({
+            recipient: req.user.id,
+            read: false
+        })
+
         res.json({ unread: count }) // return the unread count
     } catch (error) {
         res.status(500).json({ error: error.message }) // return server error if count fails

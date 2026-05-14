@@ -5,7 +5,16 @@ const express = require('express')
 const router = express.Router()
 
 // This line imports controller functions that handle user account requests
-const { registerUser, loginUser, googleLogin, getAllUsers, setupTwoFactor, verifyTwoFactor, verifyTwoFactorLogin, disableTwoFactor } = require('../controllers/userController')
+const {
+    registerUser,
+    loginUser,
+    googleLogin,
+    getAllUsers,
+    setupTwoFactor,
+    verifyTwoFactor,
+    verifyTwoFactorLogin,
+    disableTwoFactor
+} = require('../controllers/userController')
 const auth = require('../middleware/authMiddleware') // This line imports auth middleware
 const authorize = require('../middleware/roleMiddleware') // This line imports role middleware
 

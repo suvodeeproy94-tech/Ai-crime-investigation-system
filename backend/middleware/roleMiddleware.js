@@ -1,8 +1,16 @@
 // This file checks user roles. It makes sure only allowed roles can use selected backend routes.
 // This part creates middleware that allows only selected roles
-const authorize = (...roles) => {
+function authorize() {
+    // This list stores the roles passed from the route file
+    const roles = []
+
+    // This loop copies each allowed role into the list
+    for (const role of arguments) {
+        roles.push(role)
+    }
+
     // This line returns the actual Express middleware function
-    return (req, res, next) => {
+    return function (req, res, next) {
         // This check rejects the request when authentication did not attach a user
         if (!req.user) {
             return res.status(401).json({ message: 'Authentication required' })

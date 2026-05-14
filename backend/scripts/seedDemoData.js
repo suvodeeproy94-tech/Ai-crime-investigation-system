@@ -46,6 +46,32 @@ const ensureDemoUser = async ({ name, email, passwordHash, role }) => {
     return user // This line returns the ensured demo user.
 }
 
+// This helper adds one MongoDB id to a list without creating duplicate ids.
+const addMongoIdToList = (currentList, newId) => {
+    const finalList = [] // This list will hold the clean MongoDB ids.
+    const usedIds = {} // This object remembers which ids are already added.
+    const sourceList = currentList || [] // This line keeps the code safe when list is empty.
+
+    // First copy the ids that are already saved on the record.
+    for (const item of sourceList) {
+        const textId = String(item) // This line changes id to text for easy comparison.
+
+        if (!usedIds[textId]) {
+            usedIds[textId] = true // This line marks the id as already used.
+            finalList.push(new mongoose.Types.ObjectId(textId)) // This line adds the id in MongoDB format.
+        }
+    }
+
+    // Then add the new id when it is not already present.
+    const newTextId = String(newId)
+
+    if (!usedIds[newTextId]) {
+        finalList.push(new mongoose.Types.ObjectId(newTextId)) // This line adds the new id in MongoDB format.
+    }
+
+    return finalList // This line returns the cleaned id list.
+}
+
 // This helper creates all demo records in proper order.
 const seed = async () => {
     const mongoURI = process.env.MONGO_URI // This line reads MongoDB URL from env.
@@ -62,9 +88,26 @@ const seed = async () => {
     const demoPasswordHashed = await bcrypt.hash(demoPasswordPlain, 10) // This line hashes demo password.
 
     // This part creates or loads demo users.
-    const adminUser = await ensureDemoUser({ name: 'Demo Admin', email: 'admin@gmail.com', passwordHash: demoPasswordHashed, role: 'admin' }) // This line ensures admin user with reset password.
-    const policeUser = await ensureDemoUser({ name: 'Demo Police', email: 'police@gmail.com', passwordHash: demoPasswordHashed, role: 'police' }) // This line ensures police user with reset password.
-    const citizenUser = await ensureDemoUser({ name: 'Demo User', email: 'user@gmail.com', passwordHash: demoPasswordHashed, role: 'user' }) // This line ensures normal user with reset password.
+    const adminUser = await ensureDemoUser({
+        name: 'Demo Admin',
+        email: 'admin@gmail.com',
+        passwordHash: demoPasswordHashed,
+        role: 'admin'
+    })
+
+    const policeUser = await ensureDemoUser({
+        name: 'Demo Police',
+        email: 'police@gmail.com',
+        passwordHash: demoPasswordHashed,
+        role: 'police'
+    })
+
+    const citizenUser = await ensureDemoUser({
+        name: 'Demo User',
+        email: 'user@gmail.com',
+        passwordHash: demoPasswordHashed,
+        role: 'user'
+    })
 
     // This part creates or loads demo complaints.
     const complaintA = await findOrCreate(
@@ -214,10 +257,10 @@ const seed = async () => {
     )
 
     // This part updates case links for suspects and evidence.
-    caseA.suspects = Array.from(new Set([...caseA.suspects.map(String), String(suspectA._id)])).map((id) => new mongoose.Types.ObjectId(id)) // This line keeps unique suspect IDs for case A.
-    caseA.evidence = Array.from(new Set([...caseA.evidence.map(String), String(evidenceA._id)])).map((id) => new mongoose.Types.ObjectId(id)) // This line keeps unique evidence IDs for case A.
-    caseB.suspects = Array.from(new Set([...caseB.suspects.map(String), String(suspectB._id)])).map((id) => new mongoose.Types.ObjectId(id)) // This line keeps unique suspect IDs for case B.
-    caseB.evidence = Array.from(new Set([...caseB.evidence.map(String), String(evidenceB._id)])).map((id) => new mongoose.Types.ObjectId(id)) // This line keeps unique evidence IDs for case B.
+    caseA.suspects = addMongoIdToList(caseA.suspects, suspectA._id) // This line keeps suspect A linked to case A.
+    caseA.evidence = addMongoIdToList(caseA.evidence, evidenceA._id) // This line keeps evidence A linked to case A.
+    caseB.suspects = addMongoIdToList(caseB.suspects, suspectB._id) // This line keeps suspect B linked to case B.
+    caseB.evidence = addMongoIdToList(caseB.evidence, evidenceB._id) // This line keeps evidence B linked to case B.
     await caseA.save() // This line saves case A links.
     await caseB.save() // This line saves case B links.
 

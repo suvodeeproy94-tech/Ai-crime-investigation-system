@@ -3,6 +3,10 @@
 const path = require('path')
 // This line imports express to create the backend API server
 const express = require('express')
+// This line imports http so Socket.io can use the same server
+const http = require('http')
+// This line imports Socket.io for real time updates
+const { Server } = require('socket.io')
 // This line imports cors so the frontend can call the backend from another local port
 const cors = require('cors')
 // This line imports environment variables from the backend .env file
@@ -14,6 +18,31 @@ const connectDB = require('./config/db')
 
 // This part creates the Express app instance
 const app = express()
+
+// This part creates one HTTP server for Express and Socket.io
+const server = http.createServer(app)
+
+// This part creates the Socket.io server for live updates
+const io = new Server(server, {
+    cors: {
+        origin: '*',
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
+    }
+})
+
+// This line keeps Socket.io available inside controllers through req.app
+app.set('io', io)
+
+// This part listens for frontend socket connections
+io.on('connection', (socket) => {
+    // This event puts each logged in user in their own room
+    socket.on('joinUserRoom', (userId) => {
+        // This check avoids joining an empty room
+        if (userId) {
+            socket.join(`user-${userId}`)
+        }
+    })
+})
 
 // This check allows the backend to read JSON request bodies
 app.use(express.json())
@@ -57,6 +86,8 @@ app.use('/api/chat', require('./routes/chatRoutes'))
 app.use('/api/meetings', require('./routes/meetingRoutes'))
 // This line connects ai log routes under api ai logs
 app.use('/api/ai-logs', require('./routes/aiLogRoutes'))
+// This line connects activity log routes under api activity logs
+app.use('/api/activity-logs', require('./routes/activityLogRoutes'))
 
 // This line reads the server port from environment settings or uses 5000 by default
 const PORT = process.env.PORT || 5000
@@ -66,7 +97,7 @@ connectDB()
     // Starts the web server only after the database connection succeeds
     .then(() => {
         // Listens for incoming requests on the selected port
-        app.listen(PORT, () => {
+        server.listen(PORT, () => {
             // This part shows the local backend URL in the terminal
             console.log(`Server running on http://localhost:${PORT}`)
         })

@@ -1,6 +1,6 @@
 // This file shows the dashboard page with analytics.
-// This page shows totals, status summaries, and recent activity.
-import { useEffect, useMemo, useState } from 'react' // This line imports React hooks for state, effects, and memo values.
+// It shows totals, status summaries, recent records, and simple activity charts.
+import { useEffect, useState } from 'react' // This line imports React hooks for state and effects.
 import FIRList from './FIRList' // This line imports the FIR list section.
 import Navbar from '../components/Navbar' // This line imports the top bar component.
 import Sidebar from '../components/Sidebar' // This line imports the left sidebar component.
@@ -8,45 +8,115 @@ import API from '../services/apiClient' // This line imports the shared API clie
 import useAuth from '../hooks/useAuth' // This line imports current user data.
 
 // This helper turns a date into a short month name for the plot.
-const getMonthLabel = (date) => date.toLocaleString('default', { month: 'short' }) // This line returns a short month name.
+const getMonthLabel = (date) => {
+    return date.toLocaleString('default', { month: 'short' })
+}
 
 // This helper creates six empty month points for the activity plot.
 const getEmptyMonthPoints = () => {
     const today = new Date() // This line stores today date.
+    const monthPoints = [] // This list stores the last six months.
 
-    return Array.from({ length: 6 }, (_, index) => {
-        const monthDate = new Date(today.getFullYear(), today.getMonth() - (5 - index), 1) // This line gets one month in order.
+    // This loop adds months from oldest to newest.
+    for (let monthBack = 5; monthBack >= 0; monthBack -= 1) {
+        const monthDate = new Date(today.getFullYear(), today.getMonth() - monthBack, 1)
 
-        return {
-            key: `${monthDate.getFullYear()}-${monthDate.getMonth()}`, // This line stores a simple month key.
-            label: getMonthLabel(monthDate), // This line stores the month name shown below the plot.
-            value: 0 // This line starts the count at zero.
-        }
-    })
+        monthPoints.push({
+            key: `${monthDate.getFullYear()}-${monthDate.getMonth()}`,
+            label: getMonthLabel(monthDate),
+            value: 0
+        })
+    }
+
+    return monthPoints
 }
 
 // This helper counts records month wise for the activity plot.
 const getMonthlyActivity = (items) => {
-    const monthPoints = getEmptyMonthPoints() // This line creates the six month points.
-    const monthMap = new Map(monthPoints.map((point) => [point.key, point])) // This line helps find each month fast.
+    const monthPoints = getEmptyMonthPoints() // This line creates six month points.
+    const monthMap = {} // This object helps find each month by key.
 
-    items.forEach((item) => {
-        const recordDate = new Date(item.createdAt) // This line reads the record created date.
+    // This loop stores each point by its month key.
+    for (const point of monthPoints) {
+        monthMap[point.key] = point
+    }
 
-        if (Number.isNaN(recordDate.getTime())) return // This line skips records with a wrong date.
+    // This loop counts records in their matching month.
+    for (const item of items) {
+        const recordDate = new Date(item.createdAt)
 
-        const recordKey = `${recordDate.getFullYear()}-${recordDate.getMonth()}` // This line creates the month key for this record.
-        const monthPoint = monthMap.get(recordKey) // This line finds the matching month point.
+        // Skip the record when its date is not valid.
+        if (Number.isNaN(recordDate.getTime())) {
+            continue
+        }
 
-        if (monthPoint) monthPoint.value += 1 // This line adds one record to the month count.
+        const recordKey = `${recordDate.getFullYear()}-${recordDate.getMonth()}`
+        const monthPoint = monthMap[recordKey]
+
+        if (monthPoint) {
+            monthPoint.value += 1
+        }
+    }
+
+    return monthPoints
+}
+
+// This helper adds all row values for a small chart.
+const getRowTotal = (rows) => {
+    let total = 0
+
+    for (const row of rows) {
+        total += row.value
+    }
+
+    return total
+}
+
+// This helper finds the biggest value in monthly activity points.
+const getMaxPointValue = (points) => {
+    let maxValue = 1
+
+    for (const point of points) {
+        if (point.value > maxValue) {
+            maxValue = point.value
+        }
+    }
+
+    return maxValue
+}
+
+// This helper counts list items by status.
+const countStatusValues = (items, startingCounts) => {
+    const result = {}
+
+    // This loop copies the starting count values.
+    for (const statusName in startingCounts) {
+        result[statusName] = startingCounts[statusName]
+    }
+
+    for (const item of items) {
+        if (result[item.status] !== undefined) {
+            result[item.status] += 1
+        }
+    }
+
+    return result
+}
+
+// This helper returns the newest few records from a list.
+const getRecentItems = (items) => {
+    const copiedItems = items.slice()
+
+    copiedItems.sort((firstItem, secondItem) => {
+        return new Date(secondItem.createdAt) - new Date(firstItem.createdAt)
     })
 
-    return monthPoints // This line returns the final month list.
+    return copiedItems.slice(0, 5)
 }
 
 // This component shows one simple bar graph card.
 function StatusBarChart({ title, rows }) {
-    const total = rows.reduce((sum, row) => sum + row.value, 0) // This line adds all row values.
+    const total = getRowTotal(rows) // This line adds all row values.
 
     return (
         <article className="form-card chart-card">
@@ -59,17 +129,19 @@ function StatusBarChart({ title, rows }) {
             {/* This part shows each status as one bar */}
             <div className="bar-chart">
                 {rows.map((row) => {
-                    const width = total === 0 ? 0 : Math.round((row.value / total) * 100) // This line finds the bar width.
+                    let width = 0
+
+                    if (total > 0) {
+                        width = Math.round((row.value / total) * 100)
+                    }
 
                     return (
                         <div key={row.label} className="bar-row">
-                            {/* This line shows the status name and number */}
                             <div className="bar-label">
                                 <span>{row.label}</span>
                                 <strong>{row.value}</strong>
                             </div>
 
-                            {/* This line shows the colored bar */}
                             <div className="bar-track">
                                 <span className="bar-fill" style={{ width: `${width}%`, backgroundColor: row.color }} />
                             </div>
@@ -81,11 +153,10 @@ function StatusBarChart({ title, rows }) {
     )
 }
 
-// This component shows case activity with clean monthly bars
-// This component uses simple div tags so the code stays easy
+// This component shows case activity with clean monthly bars.
 function ActivityColumnChart({ title, points }) {
-    const total = points.reduce((sum, point) => sum + point.value, 0) // This line adds all month counts
-    const maxValue = Math.max(...points.map((point) => point.value), 1) // This line finds the biggest month count
+    const total = getRowTotal(points) // This line adds all month counts.
+    const maxValue = getMaxPointValue(points) // This line finds the biggest month count.
 
     return (
         <article className="form-card chart-card activity-card">
@@ -98,8 +169,12 @@ function ActivityColumnChart({ title, points }) {
             {/* This part shows every month as one vertical bar */}
             <div className="activity-bars" aria-label={title}>
                 {points.map((point) => {
-                    const percent = Math.round((point.value / maxValue) * 100) // This line changes count into bar height
-                    const height = point.value === 0 ? 8 : Math.max(percent, 24) // This line keeps every bar visible
+                    const percent = Math.round((point.value / maxValue) * 100)
+                    let height = 8
+
+                    if (point.value > 0) {
+                        height = Math.max(percent, 24)
+                    }
 
                     return (
                         <div key={point.key} className="activity-month">
@@ -116,171 +191,144 @@ function ActivityColumnChart({ title, points }) {
     )
 }
 
-// This component shows one dashboard summary card with a small icon
+// This component shows one dashboard summary card with a small icon.
 function SummaryCard({ label, value, icon }) {
-    // This line returns the card with text and matching module logo
     return (
         <article className="summary-card summary-card-icon">
-            {/* This part shows the card label and value */}
             <div>
-                {/* This line shows the summary label */}
                 <p>{label}</p>
-                {/* This line shows the summary number */}
                 <strong>{value}</strong>
             </div>
-            {/* This line shows the matching summary icon */}
             <img className="summary-icon" src={icon} alt="" />
         </article>
     )
 }
 
+// This helper builds all dashboard analytics values.
+const buildAnalytics = (data) => {
+    const firStatus = countStatusValues(data.firs, { pending: 0, investigating: 0, closed: 0 })
+    const caseStatus = countStatusValues(data.cases, { open: 0, under_review: 0, closed: 0 })
+    const evidenceStatus = countStatusValues(data.evidence, { collected: 0, verified: 0, archived: 0 })
+    const suspectStatus = countStatusValues(data.suspects, { unknown: 0, wanted: 0, cleared: 0 })
+
+    return {
+        firChart: [
+            { label: 'Pending', value: firStatus.pending, color: '#f59e0b' },
+            { label: 'Investigating', value: firStatus.investigating, color: '#2f6fed' },
+            { label: 'Closed', value: firStatus.closed, color: '#16a34a' }
+        ],
+        caseChart: [
+            { label: 'Open', value: caseStatus.open, color: '#2f6fed' },
+            { label: 'Under Review', value: caseStatus.under_review, color: '#a855f7' },
+            { label: 'Closed', value: caseStatus.closed, color: '#16a34a' }
+        ],
+        evidenceChart: [
+            { label: 'Collected', value: evidenceStatus.collected, color: '#f59e0b' },
+            { label: 'Verified', value: evidenceStatus.verified, color: '#14b8a6' },
+            { label: 'Archived', value: evidenceStatus.archived, color: '#64748b' }
+        ],
+        suspectChart: [
+            { label: 'Unknown', value: suspectStatus.unknown, color: '#64748b' },
+            { label: 'Wanted', value: suspectStatus.wanted, color: '#ef4444' },
+            { label: 'Cleared', value: suspectStatus.cleared, color: '#16a34a' }
+        ],
+        caseActivity: getMonthlyActivity(data.cases),
+        recentCases: getRecentItems(data.cases),
+        recentEvidence: getRecentItems(data.evidence)
+    }
+}
+
 // This part renders the dashboard and analytics blocks.
 function Dashboard() {
     const { user } = useAuth() // This line reads current user role.
-    const canViewSuspects = ['police', 'admin'].includes(user?.role) // This line checks suspect dashboard access.
+    let userRole = '' // This line stores role safely.
+
+    if (user && user.role) {
+        userRole = user.role
+    }
+    const canViewSuspects = userRole === 'police' || userRole === 'admin' // This line checks suspect dashboard access.
+
     // This state keeps raw list data used to calculate dashboard analytics.
-    const [data, setData] = useState({ firs: [], evidence: [], cases: [], suspects: [], unreadNotifications: 0 }) // This line stores all dashboard source lists in one object.
+    const [data, setData] = useState({
+        firs: [],
+        evidence: [],
+        cases: [],
+        suspects: [],
+        unreadNotifications: 0
+    })
+
     // This state controls loading display for first request.
-    const [loading, setLoading] = useState(true) // This line stores loading state for initial API calls.
+    const [loading, setLoading] = useState(true)
 
     // This effect loads dashboard data once when component mounts.
     useEffect(() => {
         const loadSummary = async () => {
             try {
-                const [firRes, evidenceRes, unreadRes, caseRes, suspectRes] = await Promise.all([
-                    API.get('/fir'), // Load FIR list
-                    API.get('/evidence'), // Load evidence list
-                    API.get('/notifications/unread/count'), // Load unread notification count
-                    API.get('/cases'), // Load case list
-                    canViewSuspects ? API.get('/suspects') : Promise.resolve({ data: [] }) // Load suspects only for staff
-                ])
+                const firResponse = await API.get('/fir')
+                const evidenceResponse = await API.get('/evidence')
+                const unreadResponse = await API.get('/notifications/unread/count')
+                const caseResponse = await API.get('/cases')
+                let suspectData = []
+
+                if (canViewSuspects) {
+                    const suspectResponse = await API.get('/suspects')
+                    suspectData = suspectResponse.data || []
+                }
+
+                let unreadCount = 0
+                if (unreadResponse.data && unreadResponse.data.unread) {
+                    unreadCount = unreadResponse.data.unread
+                }
 
                 setData({
-                    firs: firRes.data || [], // Save FIR records
-                    evidence: evidenceRes.data || [], // Save evidence records
-                    cases: caseRes.data || [], // Save case records
-                    suspects: suspectRes.data || [], // Save suspect records
-                    unreadNotifications: unreadRes.data?.unread || 0 // Save unread count with safe fallback
+                    firs: firResponse.data || [],
+                    evidence: evidenceResponse.data || [],
+                    cases: caseResponse.data || [],
+                    suspects: suspectData,
+                    unreadNotifications: unreadCount
                 })
             } catch (error) {
-                console.error(error) // Log error for debugging when request fails
+                console.error(error)
             } finally {
-                setLoading(false) // Stop loading state after request attempt
+                setLoading(false)
             }
         }
 
-        loadSummary() // Start data loading
+        loadSummary()
     }, [canViewSuspects])
 
-    // This memo calculates all analytics values in one place from loaded data.
-    const analytics = useMemo(() => {
-        const firStatus = { pending: 0, investigating: 0, closed: 0 } // FIR status buckets
-        const caseStatus = { open: 0, under_review: 0, closed: 0 } // Case status buckets
-        const evidenceStatus = { collected: 0, verified: 0, archived: 0 } // Evidence status buckets
-        const suspectStatus = { unknown: 0, wanted: 0, cleared: 0 } // Suspect status buckets
-
-        data.firs.forEach((item) => {
-            if (firStatus[item.status] !== undefined) firStatus[item.status] += 1 // Count each FIR by status
-        })
-
-        data.cases.forEach((item) => {
-            if (caseStatus[item.status] !== undefined) caseStatus[item.status] += 1 // Count each case by status
-        })
-
-        data.evidence.forEach((item) => {
-            if (evidenceStatus[item.status] !== undefined) evidenceStatus[item.status] += 1 // Count each evidence by status
-        })
-
-        data.suspects.forEach((item) => {
-            if (suspectStatus[item.status] !== undefined) suspectStatus[item.status] += 1 // Count each suspect by status
-        })
-
-        const recentCases = [...data.cases] // Create shallow copy for safe sort
-            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) // Newest first
-            .slice(0, 5) // Keep only top 5 records
-
-        const recentEvidence = [...data.evidence] // Create shallow copy for safe sort
-            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) // Newest first
-            .slice(0, 5) // Keep only top 5 records
-
-        const firChart = [
-            { label: 'Pending', value: firStatus.pending, color: '#f59e0b' }, // This line stores pending FIR graph data.
-            { label: 'Investigating', value: firStatus.investigating, color: '#2f6fed' }, // This line stores investigating FIR graph data.
-            { label: 'Closed', value: firStatus.closed, color: '#16a34a' } // This line stores closed FIR graph data.
-        ]
-
-        const caseChart = [
-            { label: 'Open', value: caseStatus.open, color: '#2f6fed' }, // This line stores open case graph data.
-            { label: 'Under Review', value: caseStatus.under_review, color: '#a855f7' }, // This line stores review case graph data.
-            { label: 'Closed', value: caseStatus.closed, color: '#16a34a' } // This line stores closed case graph data.
-        ]
-
-        const evidenceChart = [
-            { label: 'Collected', value: evidenceStatus.collected, color: '#f59e0b' }, // This line stores collected evidence graph data.
-            { label: 'Verified', value: evidenceStatus.verified, color: '#14b8a6' }, // This line stores verified evidence graph data.
-            { label: 'Archived', value: evidenceStatus.archived, color: '#64748b' } // This line stores archived evidence graph data.
-        ]
-
-        const suspectChart = [
-            { label: 'Unknown', value: suspectStatus.unknown, color: '#64748b' }, // This line stores unknown suspect graph data.
-            { label: 'Wanted', value: suspectStatus.wanted, color: '#ef4444' }, // This line stores wanted suspect graph data.
-            { label: 'Cleared', value: suspectStatus.cleared, color: '#16a34a' } // This line stores cleared suspect graph data.
-        ]
-
-        const caseActivity = getMonthlyActivity(data.cases) // This line builds month wise case activity.
-
-        return {
-            firStatus, // Return FIR status summary
-            caseStatus, // Return case status summary
-            evidenceStatus, // Return evidence status summary
-            suspectStatus, // Return suspect status summary
-            firChart, // Return FIR chart rows
-            caseChart, // Return case chart rows
-            evidenceChart, // Return evidence chart rows
-            suspectChart, // Return suspect chart rows
-            caseActivity, // Return case activity plot points
-            recentCases, // Return recent case activity list
-            recentEvidence // Return recent evidence activity list
-        }
-    }, [data])
+    // This line builds dashboard analytics from loaded data.
+    const analytics = buildAnalytics(data)
 
     return (
-        <div className="app-layout"> {/* This line renders app layout wrapper */}
-            <Sidebar /> {/* This line renders left navigation menu */}
-            <main className="main-panel"> {/* This line renders main content area */}
-                <Navbar title="Dashboard" /> {/* This line renders page title bar */}
+        <div className="app-layout">
+            <Sidebar />
+            <main className="main-panel">
+                <Navbar title="Dashboard" />
 
-                <section className="dashboard-summary"> {/* This line renders top summary cards section */}
-                    <SummaryCard label="Total FIRs" value={data.firs.length} icon="/logos/icon-fir.png" /> {/* This line renders total fir card */}
-                    <SummaryCard label="Total Cases" value={data.cases.length} icon="/logos/icon-cases.png" /> {/* This line renders total case card */}
-                    <SummaryCard label="Evidence Items" value={data.evidence.length} icon="/logos/icon-evidence.png" /> {/* This line renders evidence count card */}
-                    <SummaryCard label="Unread Alerts" value={data.unreadNotifications} icon="/logos/icon-notifications.png" /> {/* This line renders unread alerts card */}
+                <section className="dashboard-summary">
+                    <SummaryCard label="Total FIRs" value={data.firs.length} icon="/logos/icon-fir.png" />
+                    <SummaryCard label="Total Cases" value={data.cases.length} icon="/logos/icon-cases.png" />
+                    <SummaryCard label="Evidence Items" value={data.evidence.length} icon="/logos/icon-evidence.png" />
+                    <SummaryCard label="Unread Alerts" value={data.unreadNotifications} icon="/logos/icon-notifications.png" />
                     {canViewSuspects && (
                         <SummaryCard label="Total Suspects" value={data.suspects.length} icon="/logos/icon-suspects.png" />
                     )}
                 </section>
 
-                <section className="content-section dashboard-analytics-grid"> {/* This line renders analytics graphs section */}
-                    {/* This part shows FIR status as a graph */}
+                <section className="content-section dashboard-analytics-grid">
                     <StatusBarChart title="FIR Status Graph" rows={analytics.firChart} />
-
-                    {/* This part shows case status as a graph */}
                     <StatusBarChart title="Case Status Graph" rows={analytics.caseChart} />
-
-                    {/* This part shows evidence status as a graph */}
                     <StatusBarChart title="Evidence Status Graph" rows={analytics.evidenceChart} />
-
-                    {/* This part shows suspect status as a graph */}
                     {canViewSuspects && <StatusBarChart title="Suspect Status Graph" rows={analytics.suspectChart} />}
                 </section>
 
-                <section className="content-section dashboard-plot-section"> {/* This line renders activity chart section */}
-                    {/* This part shows case activity as a clean bar chart */}
+                <section className="content-section dashboard-plot-section">
                     <ActivityColumnChart title="Case Activity Chart" points={analytics.caseActivity} />
                 </section>
 
-                <section className="content-section dashboard-analytics-grid"> {/* This line renders recent activity cards section */}
-                    <article className="form-card"> {/* This line renders recent cases card */}
+                <section className="content-section dashboard-analytics-grid">
+                    <article className="form-card">
                         <p className="eyebrow">Recent Cases</p>
                         {analytics.recentCases.length === 0 && !loading && <p>No recent cases.</p>}
                         {analytics.recentCases.map((item) => (
@@ -291,7 +339,7 @@ function Dashboard() {
                         ))}
                     </article>
 
-                    <article className="form-card"> {/* This line renders recent evidence card */}
+                    <article className="form-card">
                         <p className="eyebrow">Recent Evidence</p>
                         {analytics.recentEvidence.length === 0 && !loading && <p>No recent evidence.</p>}
                         {analytics.recentEvidence.map((item) => (
@@ -303,10 +351,10 @@ function Dashboard() {
                     </article>
                 </section>
 
-                <FIRList /> {/* This line renders fir list section */}
+                <FIRList />
             </main>
         </div>
     )
 }
 
-export default Dashboard // Export dashboard page component
+export default Dashboard

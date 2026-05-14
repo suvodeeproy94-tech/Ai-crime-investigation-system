@@ -11,8 +11,13 @@ const getSavedUser = () => {
     try {
         // This line reads the stored user string from local storage
         const savedUser = localStorage.getItem('user')
-        // This line changes the stored user string back into an object when it exists
-        return savedUser ? JSON.parse(savedUser) : null
+        // This line returns no user when storage has no saved user
+        if (!savedUser) {
+            return null
+        }
+
+        // This line changes the stored user string back into an object
+        return JSON.parse(savedUser)
     } catch {
         // This line removes invalid user data when parsing fails
         localStorage.removeItem('user')
@@ -32,7 +37,7 @@ export const AuthProvider = ({ children }) => {
     // This line saves login data after a successful login request
     const login = (data) => {
         // Ignores invalid login responses that do not contain token and user data
-        if (!data?.token || !data?.user) {
+        if (!data || !data.token || !data.user) {
             return
         }
 

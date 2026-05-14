@@ -1,7 +1,7 @@
 // This file shows ai log page
 // This page lets all logged in users view ai analysis logs
 import { useEffect, useState } from 'react' // This line imports state and effect hooks
-import API from '../services/apiClient' // This line imports shared api client
+import API, { getApiErrorMessage } from '../services/apiClient' // This line imports shared api client
 import Navbar from '../components/Navbar' // This line imports top bar
 import Sidebar from '../components/Sidebar' // This line imports left menu
 import Loader from '../components/Loader' // This line imports the shared loading logo component
@@ -20,10 +20,10 @@ function AILogs() {
         setError('') // This line clears old error
 
         try {
-            const res = await API.get('/ai-logs') // This line loads ai logs
-            setLogs(res.data || []) // This line saves ai logs
+            const response = await API.get('/ai-logs') // This line loads ai logs
+            setLogs(response.data || []) // This line saves ai logs
         } catch (requestError) {
-            setError(requestError.response?.data?.message || 'Unable to load ai logs') // This line shows loading error
+            setError(getApiErrorMessage(requestError, 'Unable to load ai logs')) // This line shows loading error
         } finally {
             setLoading(false) // This line stops loading
         }
@@ -34,13 +34,53 @@ function AILogs() {
         loadLogs() // This line starts log loading
     }, [])
 
-    // This part filters logs by status and text
-    const filteredLogs = logs.filter((log) => {
-        const matchesStatus = statusFilter ? log.status === statusFilter : true // This line checks status filter
-        const text = `${log.inputText || ''} ${log.outputText || ''} ${log.errorMessage || ''}`.toLowerCase() // This line builds searchable text
-        const matchesText = searchText ? text.includes(searchText.toLowerCase()) : true // This line checks text filter
-        return matchesStatus && matchesText // This line returns final filter result
-    })
+    // This helper returns a safe requester name for the log card
+    const getRequesterName = (log) => {
+        if (log.requestedBy && log.requestedBy.name) {
+            return log.requestedBy.name
+        }
+
+        return 'Unknown user'
+    }
+
+    // This helper returns a simple badge class for log status
+    const getStatusClass = (status) => {
+        if (status === 'failed') {
+            return 'badge btn-danger'
+        }
+
+        return 'badge'
+    }
+
+    // This helper filters logs by status and search text
+    const getFilteredLogs = () => {
+        const filteredLogs = []
+        const lowerSearchText = searchText.toLowerCase()
+
+        for (const log of logs) {
+            let matchesStatus = true
+
+            if (statusFilter) {
+                matchesStatus = log.status === statusFilter
+            }
+
+            const text = `${log.inputText || ''} ${log.outputText || ''} ${log.errorMessage || ''}`.toLowerCase()
+            let matchesText = true
+
+            if (searchText) {
+                matchesText = text.includes(lowerSearchText)
+            }
+
+            if (matchesStatus && matchesText) {
+                filteredLogs.push(log)
+            }
+        }
+
+        return filteredLogs
+    }
+
+    // This line stores logs after filters are applied
+    const filteredLogs = getFilteredLogs()
 
     return (
         <div className="app-layout"> {/* This line renders app layout wrapper */}
@@ -62,7 +102,11 @@ function AILogs() {
                         <div className="filter-row"> {/* This line renders filter inputs row */}
                             <label>
                                 Search Text
-                                <input value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="Search input output or error text" />
+                                <input
+                                    value={searchText}
+                                    onChange={(event) => setSearchText(event.target.value)}
+                                    placeholder="Search input output or error text"
+                                />
                             </label>
                             <label>
                                 Status
@@ -77,7 +121,9 @@ function AILogs() {
 
                     {error && <div className="analysis-error"><p>{error}</p></div>} {/* This line shows error message */}
                     {loading && <div className="empty-state"><Loader /></div>} {/* This line shows loading state */}
-                    {!loading && filteredLogs.length === 0 && <div className="empty-state">No ai logs found</div>} {/* This line shows empty state */}
+                    {!loading && filteredLogs.length === 0 && (
+                        <div className="empty-state">No ai logs found</div>
+                    )}
 
                     {!loading && filteredLogs.length > 0 && (
                         <div className="fir-grid"> {/* This line renders ai logs cards grid */}
@@ -86,9 +132,9 @@ function AILogs() {
                                     <div className="fir-card-header"> {/* This line renders ai log card header */}
                                         <div>
                                             <p className="eyebrow">AI Request</p>
-                                            <h3>{log.requestedBy?.name || 'Unknown user'}</h3>
+                                            <h3>{getRequesterName(log)}</h3>
                                         </div>
-                                        <span className={`badge ${log.status === 'failed' ? 'btn-danger' : ''}`}>{log.status}</span>
+                                        <span className={getStatusClass(log.status)}>{log.status}</span>
                                     </div>
                                     <div className="fir-meta">
                                         <span>User Role</span>

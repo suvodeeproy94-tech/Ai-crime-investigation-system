@@ -1,6 +1,12 @@
 // This file shows one FIR record as a card. It displays the FIR details and the edit or delete buttons based on the user role.
 // This part shows one FIR record as a card in the FIR list
 function FIRCard({ fir, onEdit, onDelete, role }) {
+    // This line stores status history in a safe list
+    const statusHistory = fir.statusHistory || []
+
+    // This line stores the current status or a simple fallback
+    const firStatus = fir.status || 'pending'
+
     // This line returns the card layout with record details and role based actions
     return (
         // Main container for one FIR item
@@ -15,9 +21,9 @@ function FIRCard({ fir, onEdit, onDelete, role }) {
                     <h3>{fir.title}</h3>
                 </div>
                 {/* This part shows the current FIR status and status based styling */}
-                <span className={`badge badge-${fir.status || 'pending'}`}>
+                <span className={`badge badge-${firStatus}`}>
                     {/* Uses pending when the status is missing */}
-                    {fir.status || 'pending'}
+                    {firStatus}
                 </span>
             </div>
 
@@ -33,11 +39,11 @@ function FIRCard({ fir, onEdit, onDelete, role }) {
             </div>
 
             {/* This part shows FIR status history when available */}
-            {fir.statusHistory?.length > 0 && (
+            {statusHistory.length > 0 && (
                 <div className="status-history">
                     {/* This labels the history block */}
                     <span>Status History</span>
-                    {fir.statusHistory.map((historyItem) => (
+                    {statusHistory.map((historyItem) => (
                         <p key={historyItem._id || `${historyItem.status}-${historyItem.changedAt}`}>
                             {historyItem.status} on {new Date(historyItem.changedAt).toLocaleString()}
                         </p>

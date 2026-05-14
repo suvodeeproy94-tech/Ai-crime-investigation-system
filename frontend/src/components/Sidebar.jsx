@@ -19,6 +19,7 @@ const navItems = [
     { label: 'Create FIR', path: '/create-fir', icon: '/logos/icon-fir.png', roles: ['police', 'admin'] },
     { label: 'Evidence', path: '/evidence', icon: '/logos/icon-evidence.png', roles: ['police', 'admin'] },
     { label: 'Cases', path: '/cases', icon: '/logos/icon-cases.png' },
+    { label: 'Crime Map', path: '/crime-map', icon: '/logos/icon-cases.png' },
     { label: 'Suspects', path: '/suspects', icon: '/logos/icon-suspects.png', roles: ['police', 'admin'] },
     { label: 'Reports', path: '/reports', icon: '/logos/icon-reports.png' },
     { label: 'Notifications', path: '/notifications', icon: '/logos/icon-notifications.png' },
@@ -26,6 +27,7 @@ const navItems = [
     { label: 'Live Meeting', path: '/meetings', icon: '/logos/role-admin.png', roles: ['admin', 'police'] },
     { label: 'AI Analysis', path: '/ai', icon: '/logos/icon-ai.png', roles: ['police', 'admin'] },
     { label: 'AI Logs', path: '/ai-logs', icon: '/logos/icon-alert.png' },
+    { label: 'Activity Logs', path: '/activity-logs', icon: '/logos/icon-alert.png' },
     { label: 'Users', path: '/users', icon: '/logos/role-admin.png', roles: ['admin'] }
 ]
 
@@ -33,11 +35,42 @@ const navItems = [
 function Sidebar() {
     // This line reads the current user and logout function from auth context
     const { user, logout } = useAuth()
+
+    // This line stores the current role in a simple variable
+    let userRole = 'user'
+
+    if (user && user.role) {
+        userRole = user.role
+    }
+
+    // This line stores the display name shown in the sidebar
+    let userName = 'Logged in'
+
+    if (user && user.name) {
+        userName = user.name
+    }
+
     // This line stores the icon that matches the current user role
-    const roleIcon = roleIcons[user?.role] || roleIcons.user
+    const roleIcon = roleIcons[userRole] || roleIcons.user
 
     // This function checks whether a menu item should be visible
-    const canShowNavItem = (item) => !item.roles || item.roles.includes(user?.role)
+    const canShowNavItem = (item) => {
+        if (!item.roles) {
+            return true
+        }
+
+        return item.roles.includes(userRole)
+    }
+
+    // This list stores only menu items visible for the current role
+    const visibleNavItems = []
+
+    // This loop keeps the role filtering easy to read
+    for (const item of navItems) {
+        if (canShowNavItem(item)) {
+            visibleNavItems.push(item)
+        }
+    }
 
     // This line returns the sidebar navigation and user box.
     return (
@@ -57,7 +90,7 @@ function Sidebar() {
             {/* This part shows navigation links based on the current role */}
             <nav className="side-nav">
                 {/* This part creates each sidebar link with its matching icon */}
-                {navItems.filter(canShowNavItem).map((item) => (
+                {visibleNavItems.map((item) => (
                     <NavLink key={item.path} to={item.path}>
                         {/* This line shows the menu icon */}
                         <img className="nav-icon" src={item.icon} alt="" />
@@ -76,9 +109,9 @@ function Sidebar() {
                     {/* This part shows the user name and role */}
                     <div>
                         {/* This part shows the user name or a fallback label */}
-                        <span>{user?.name || 'Logged in'}</span>
+                        <span>{userName}</span>
                         {/* This part shows the user's role */}
-                        <strong>{user?.role}</strong>
+                        <strong>{userRole}</strong>
                     </div>
                 </div>
                 {/* This line logs out the user when clicked. */}

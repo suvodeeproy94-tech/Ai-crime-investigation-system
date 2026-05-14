@@ -98,7 +98,8 @@
 
   /* This part controls the main login and register panel */
   .auth-panel {
-    @apply grid w-full max-w-[980px] grid-cols-[1.05fr_0.95fr] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/15;
+    @apply grid w-full max-w-[980px] grid-cols-[1.05fr_0.95fr] overflow-hidden rounded-xl;
+    @apply border border-slate-200 bg-white shadow-2xl shadow-slate-900/15;
   }
 
   /* This part keeps the two factor page narrow inside the app */
@@ -123,6 +124,22 @@
   /* This part keeps image side text above the color layer */
   .auth-copy > * {
     @apply relative z-10;
+  }
+
+  /* This part keeps the big logo in the empty space above the auth title */
+  .auth-copy-logo-box {
+    @apply mb-6 h-64 w-80 self-center;
+  }
+
+  /* This part holds the Three.js canvas for the uploaded logo */
+  .rotating-logo-3d {
+    @apply h-full w-full;
+    filter: contrast(1.12) saturate(1.12) drop-shadow(0 0 24px rgba(96, 165, 250, 0.72)); /* This line adds a soft blue glow around the 3D logo */
+  }
+
+  /* This part makes the canvas fill the logo box */
+  .rotating-logo-3d canvas {
+    @apply block h-full w-full;
   }
 
   /* This part controls the form side on login and register */
@@ -636,7 +653,8 @@
   }
 
   .activity-bars {
-    @apply grid min-h-56 grid-cols-6 items-end gap-3.5 rounded-lg border border-slate-200 bg-gradient-to-b from-slate-50 to-slate-100 px-2.5 pb-0 pt-3.5;
+    @apply grid min-h-56 grid-cols-6 items-end gap-3.5 rounded-lg border border-slate-200;
+    @apply bg-gradient-to-b from-slate-50 to-slate-100 px-2.5 pb-0 pt-3.5;
   }
 
   .activity-month {
@@ -644,7 +662,8 @@
   }
 
   .activity-value {
-    @apply inline-grid min-h-6 min-w-8 place-items-center justify-self-center rounded-full bg-white px-2 py-1 text-xs font-black text-blue-700 shadow-md shadow-slate-900/5;
+    @apply inline-grid min-h-6 min-w-8 place-items-center justify-self-center rounded-full bg-white;
+    @apply px-2 py-1 text-xs font-black text-blue-700 shadow-md shadow-slate-900/5;
   }
 
   .activity-track {
@@ -793,6 +812,10 @@
 
   .meeting-iframe {
     @apply h-[620px] w-full border-0;
+  }
+
+  .map-box {
+    @apply h-[520px] w-full overflow-hidden rounded-lg border border-slate-200 bg-slate-100;
   }
 }
 
@@ -970,6 +993,10 @@
   body.dark-mode .chat-user-btn.active {
     @apply border-blue-300 bg-slate-700;
   }
+
+  body.dark-mode .map-box {
+    @apply border-slate-700 bg-slate-800;
+  }
 }
 
 /* This section adjusts the layout for smaller screens */
@@ -981,6 +1008,14 @@
 
   .auth-copy {
     @apply min-h-80 p-8;
+  }
+
+  .auth-copy-logo-box {
+    @apply h-48 w-60;
+  }
+
+  .rotating-logo-3d {
+    @apply h-48 w-60;
   }
 
   .auth-copy h1 {
@@ -1042,5 +1077,13 @@
 
   .activity-bars {
     @apply grid-cols-3;
+  }
+
+  .auth-copy-logo-box {
+    @apply h-40 w-52;
+  }
+
+  .rotating-logo-3d {
+    @apply h-40 w-52;
   }
 }
