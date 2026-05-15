@@ -714,14 +714,22 @@ You can see these collections in MongoDB Compass:
 11. ailogs
 12. activitylogs
 
-If the database is empty, run demo seed:
+If the local database is empty, run demo seed.
+
+First create the demo users and basic records:
 
 ```bash
 cd backend
+npm run seed:demo
+```
+
+Then create the advanced demo records:
+
+```bash
 npm run seed:advanced
 ```
 
-This will add demo cases, logs, notifications, chat messages, FIR, evidence, suspects, and reports.
+This will add demo users, complaints, FIR records, cases, crime map data, logs, notifications, chat messages, evidence, suspects, reports, and meeting data.
 
 MongoDB Atlas is optional. You do not need Atlas for this local project.
 
@@ -1192,6 +1200,153 @@ Use this connection string later in Render as:
 MONGO_URI=your_final_mongodb_connection_string
 ```
 
+### Step 1A: Add Demo Data In MongoDB Atlas
+
+This step is useful when your Atlas database is empty and you want ready-made data for testing all project features.
+
+Important: do this after creating the Atlas cluster and after getting the final Atlas connection string.
+
+This demo seed will add:
+
+1. Admin, police, and user demo accounts
+2. Complaints
+3. FIR records
+4. Cases
+5. Crime map locations
+6. Suspects
+7. Evidence
+8. Reports
+9. Notifications
+10. Chat messages
+11. Meeting data
+12. AI logs
+13. Activity logs
+
+Demo login details:
+
+```text
+Admin: admin@gmail.com / Demo@12345
+Police: police@gmail.com / Demo@12345
+User: user@gmail.com / Demo@12345
+```
+
+Follow these steps:
+
+1. Open VS Code.
+2. Open this project folder.
+3. Open `backend/.env`.
+4. Make sure `MONGO_URI` is your MongoDB Atlas connection string.
+
+Example:
+
+```env
+MONGO_URI=mongodb+srv://username:password@cluster0.xxxxx.mongodb.net/crime_investigation_system?retryWrites=true&w=majority&appName=Cluster0
+```
+
+5. Make sure the database name is present after `.net/`.
+
+Correct:
+
+```text
+mongodb.net/crime_investigation_system?retryWrites=true
+```
+
+Wrong:
+
+```text
+mongodb.net/?retryWrites=true
+```
+
+6. Open terminal in VS Code.
+7. Go to backend folder:
+
+```bash
+cd backend
+```
+
+8. Check if MongoDB Shell is installed:
+
+```bash
+mongosh --version
+```
+
+If it shows a version number, you can continue.
+
+If it says `mongosh` is not recognized, install MongoDB Shell from MongoDB website, then close and reopen VS Code.
+
+9. Copy your full Atlas connection string from `backend/.env`.
+10. Run the Atlas demo seed command.
+
+Use this format:
+
+```bash
+mongosh "your_mongodb_atlas_connection_string" --quiet scripts/seedAtlasDemoData.mongosh.js
+```
+
+Example:
+
+```bash
+mongosh "mongodb+srv://username:password@cluster0.xxxxx.mongodb.net/crime_investigation_system?retryWrites=true&w=majority&appName=Cluster0" --quiet scripts/seedAtlasDemoData.mongosh.js
+```
+
+Important:
+
+1. Keep the connection string inside double quotes.
+2. Replace `username` with your Atlas database username.
+3. Replace `password` with your Atlas database password.
+4. Do not paste your real password in GitHub.
+5. Do not share your real connection string with anyone.
+
+After the seed runs successfully, the terminal should show counts like this:
+
+```text
+Atlas demo data seed completed
+users=3
+complaints=3
+firs=3
+cases=4
+suspects=3
+evidences=3
+reports=2
+notifications=3
+chatmessages=3
+meetings=1
+ailogs=2
+activitylogs=15
+```
+
+Now check the data in MongoDB Atlas:
+
+1. Open MongoDB Atlas.
+2. Open your project.
+3. Open Database.
+4. Click your cluster.
+5. Click Browse Collections or Data Explorer.
+6. Open database:
+
+```text
+crime_investigation_system
+```
+
+7. Open `users`.
+8. Click refresh.
+9. You should see the demo users.
+10. Open `cases`, `complaints`, `firs`, and other collections to check more data.
+
+If Atlas still shows empty data:
+
+1. Check that `backend/.env` is using the Atlas URI, not local Compass URI.
+2. Check that the URI contains `crime_investigation_system`.
+3. Check that your Atlas username and password are correct.
+4. Check MongoDB Atlas Network Access.
+5. For Render and simple testing, allow:
+
+```text
+0.0.0.0/0
+```
+
+6. Run the seed command again.
+
 ### Step 2: Deploy Backend On Render
 
 Now deploy the backend API.
@@ -1474,6 +1629,14 @@ Maps JavaScript API
 12. Save the API key.
 
 ### Step 6: Test Live Project
+
+Before testing the live website, make sure the Atlas database has data.
+
+If Atlas is empty, follow the section:
+
+```text
+Step 1A: Add Demo Data In MongoDB Atlas
+```
 
 Test these pages:
 
@@ -2051,29 +2214,228 @@ Without these, the code can be prepared, but the actual live deployment cannot b
 
 ## Demo Data
 
-The project has seed scripts for demo records.
+The project has demo data scripts so you can test the project quickly.
 
-### Basic Demo Data
+There are two database choices:
 
-Run:
+1. Local MongoDB using MongoDB Compass
+2. Online MongoDB using MongoDB Atlas
+
+Use the correct seed method for the database you are using.
+
+### Demo Login Accounts
+
+After adding demo data, you can login with these accounts:
+
+```text
+Admin: admin@gmail.com / Demo@12345
+Police: police@gmail.com / Demo@12345
+User: user@gmail.com / Demo@12345
+```
+
+Use the admin account to check admin pages.
+
+Use the police account to check FIR, case, evidence, suspect, report, AI, chat, and meeting pages.
+
+Use the user account to check complaint, notification, and user side pages.
+
+### Local Demo Data For MongoDB Compass
+
+Use this when your backend `.env` has local MongoDB URL.
+
+Example:
+
+```env
+MONGO_URI=mongodb://127.0.0.1:27017/crime_investigation_system
+```
+
+Step 1: open terminal.
+
+Step 2: go to backend folder.
 
 ```bash
 cd backend
+```
+
+Step 3: run the basic demo seed.
+
+```bash
 npm run seed:demo
 ```
 
-This creates basic demo data.
+This creates:
 
-### Advanced Demo Data
+1. Demo admin user
+2. Demo police user
+3. Demo normal user
+4. Basic complaints
+5. Basic FIR records
+6. Basic cases
+7. Basic suspects
+8. Basic evidence
+9. Basic notifications
 
-Run:
+Step 4: run the advanced demo seed.
 
 ```bash
-cd backend
 npm run seed:advanced
 ```
 
-This creates demo data for:
+This creates:
+
+1. Crime map records
+2. Activity logs
+3. Notifications
+4. Chat messages
+5. More cases
+6. More FIR data
+7. Evidence
+8. Suspects
+9. Reports
+10. Meeting data
+
+Step 5: open MongoDB Compass.
+
+Step 6: connect to:
+
+```text
+mongodb://localhost:27017
+```
+
+Step 7: open database:
+
+```text
+crime_investigation_system
+```
+
+Step 8: check these collections:
+
+1. users
+2. complaints
+3. firs
+4. cases
+5. suspects
+6. evidences
+7. reports
+8. notifications
+9. chatmessages
+10. meetings
+11. activitylogs
+
+### Online Demo Data For MongoDB Atlas
+
+Use this when your backend `.env` has MongoDB Atlas URL.
+
+Example:
+
+```env
+MONGO_URI=mongodb+srv://username:password@cluster0.xxxxx.mongodb.net/crime_investigation_system?retryWrites=true&w=majority&appName=Cluster0
+```
+
+This project includes this Atlas seed file:
+
+```text
+backend/scripts/seedAtlasDemoData.mongosh.js
+```
+
+This file is made for Atlas and uses MongoDB Shell.
+
+It is useful when:
+
+1. Atlas database is empty
+2. Render backend is connected to Atlas
+3. Live website has no test records
+4. You want ready demo data for checking all features
+
+Step 1: open VS Code.
+
+Step 2: open `backend/.env`.
+
+Step 3: make sure `MONGO_URI` is your Atlas URI.
+
+Step 4: make sure the URI contains the database name.
+
+Correct:
+
+```text
+mongodb.net/crime_investigation_system?retryWrites=true
+```
+
+Wrong:
+
+```text
+mongodb.net/?retryWrites=true
+```
+
+Step 5: open terminal.
+
+Step 6: go to backend folder.
+
+```bash
+cd backend
+```
+
+Step 7: check MongoDB Shell.
+
+```bash
+mongosh --version
+```
+
+If a version number appears, continue.
+
+If it does not work, install MongoDB Shell first.
+
+Step 8: copy your full Atlas connection string from `backend/.env`.
+
+Step 9: run this command.
+
+```bash
+mongosh "your_mongodb_atlas_connection_string" --quiet scripts/seedAtlasDemoData.mongosh.js
+```
+
+Example:
+
+```bash
+mongosh "mongodb+srv://username:password@cluster0.xxxxx.mongodb.net/crime_investigation_system?retryWrites=true&w=majority&appName=Cluster0" --quiet scripts/seedAtlasDemoData.mongosh.js
+```
+
+After success, it will show:
+
+```text
+Atlas demo data seed completed
+users=3
+complaints=3
+firs=3
+cases=4
+suspects=3
+evidences=3
+reports=2
+notifications=3
+chatmessages=3
+meetings=1
+ailogs=2
+activitylogs=15
+```
+
+Step 10: open MongoDB Atlas.
+
+Step 11: open your project.
+
+Step 12: open Data Explorer.
+
+Step 13: open database:
+
+```text
+crime_investigation_system
+```
+
+Step 14: open `users`.
+
+Step 15: click refresh.
+
+You should now see the demo users and other demo records.
+
+### What The Atlas Demo Seed Creates
 
 1. Crime map
 2. Activity logs
@@ -2085,6 +2447,33 @@ This creates demo data for:
 8. Suspects
 9. Reports
 10. Meetings
+11. AI logs
+12. Demo login accounts
+
+### If Demo Data Does Not Show In Atlas
+
+Check these points:
+
+1. Make sure you are looking at the correct Atlas project.
+2. Make sure you are looking at the correct cluster.
+3. Make sure you opened this database:
+
+```text
+crime_investigation_system
+```
+
+4. Click the refresh icon in Atlas Data Explorer.
+5. Make sure `MONGO_URI` is Atlas URI, not local MongoDB Compass URI.
+6. Make sure your Atlas password is correct inside the URI.
+7. Make sure special characters in the password are URL encoded.
+8. Make sure Network Access allows your computer IP.
+9. For Render testing, allow:
+
+```text
+0.0.0.0/0
+```
+
+10. Run the Atlas seed command again.
 
 ## How To Check Advanced Features
 
