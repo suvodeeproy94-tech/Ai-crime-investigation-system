@@ -16,8 +16,61 @@ require('dotenv').config({ path: path.join(__dirname, '.env') })
 const fs = require('fs')
 const connectDB = require('./config/db')
 
-// This line reads allowed frontend URL from environment or allows local frontend.
-const allowedOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173'
+// This line reads allowed frontend URLs from Render environment settings.
+const allowedOriginText = process.env.CORS_ORIGIN || 'http://localhost:5173'
+
+// This part changes comma separated frontend URLs into a simple list.
+const allowedOrigins = allowedOriginText
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter((origin) => origin !== '')
+
+// This function checks if a frontend URL is allowed to call the backend.
+function checkAllowedOrigin(origin) {
+    // Browser tools and server checks can call the API without an origin.
+    if (!origin) {
+        return true
+    }
+
+    // This line allows the exact frontend URLs saved in CORS_ORIGIN.
+    if (allowedOrigins.includes(origin)) {
+        return true
+    }
+
+    // This part allows this project's Vercel frontend deployment URLs.
+    if (origin.startsWith('https://ai-crime-investigation-frontend') && origin.endsWith('.vercel.app')) {
+        return true
+    }
+
+    // Any other website is blocked.
+    return false
+}
+
+// This object is used by Express CORS middleware.
+const corsOptions = {
+    origin: (origin, callback) => {
+        // This check allows the request when the origin is trusted.
+        if (checkAllowedOrigin(origin)) {
+            callback(null, true)
+            return
+        }
+
+        // This line blocks unknown websites from using the backend.
+        callback(new Error('This frontend is not allowed by CORS'))
+    }
+}
+
+// This function is used by Socket.io CORS settings.
+function checkSocketOrigin(origin, callback) {
+    // This check allows live socket connection from trusted frontend URLs.
+    if (checkAllowedOrigin(origin)) {
+        callback(null, true)
+        return
+    }
+
+    // This line blocks unknown socket connections.
+    callback(new Error('This frontend is not allowed by CORS'))
+}
 
 // This part creates the Express app instance
 const app = express()
@@ -28,7 +81,7 @@ const server = http.createServer(app)
 // This part creates the Socket.io server for live updates
 const io = new Server(server, {
     cors: {
-        origin: allowedOrigin,
+        origin: checkSocketOrigin,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
     }
 })
@@ -50,7 +103,7 @@ io.on('connection', (socket) => {
 // This check allows the backend to read JSON request bodies
 app.use(express.json())
 // This check allows browser requests from the frontend app
-app.use(cors({ origin: allowedOrigin }))
+app.use(cors(corsOptions))
 
 // Serve uploaded evidence files from the backend
 const uploadsDir = path.join(__dirname, 'uploads')
