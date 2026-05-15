@@ -84,6 +84,27 @@ const cleanOtpCode = (code) => {
     return (code || '').toString().replace(/\D/g, '')
 }
 
+// This function keeps the selected signup role safe and simple
+const getSignupRole = (role) => {
+    // This check allows admin role when it is selected
+    if (role === 'admin') {
+        return 'admin'
+    }
+
+    // This check allows police role when it is selected
+    if (role === 'police') {
+        return 'police'
+    }
+
+    // This check keeps normal users as user role
+    if (role === 'user') {
+        return 'user'
+    }
+
+    // This line uses user role when no correct role is sent
+    return 'user'
+}
+
 // This part checks one OTP code against one saved secret
 const isOtpCodeValid = (secret, code) => {
     // This line gives a little time room for phone and computer clock difference
@@ -99,8 +120,10 @@ const isOtpCodeValid = (secret, code) => {
 exports.registerUser = async (req, res) => {
 
     // This line reads registration fields from the request body
-    const { name, email, password } = req.body // This line reads public signup fields
-    const selectedRole = 'user' // This line keeps public signup as normal user only
+    const { name, email, password, role } = req.body // This line reads signup fields
+
+    // This line gets the selected role in a safe and simple way
+    const selectedRole = getSignupRole(role)
 
     // This part handles registration errors with a clean API response
     try {
@@ -119,7 +142,7 @@ exports.registerUser = async (req, res) => {
         // Hashes the plain password before storing it
         const hashedPassword = await bcrypt.hash(password, salt)
 
-        // This part creates the user document with normal user role
+        // This part creates the user document with the selected role
         user = new User({
             // This part keeps the user's display name
             name,
@@ -127,7 +150,7 @@ exports.registerUser = async (req, res) => {
             email,
             // This part keeps only the hashed password
             password: hashedPassword,
-            // This line saves selected role when the role is valid
+            // This line saves the selected role
             role: selectedRole
         })
 

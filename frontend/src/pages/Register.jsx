@@ -1,6 +1,6 @@
 // This file shows the registration page
 // This page lets a person create an account
-// This page creates normal user accounts only
+// This page lets a person select a role for the account
 // This line imports useState for managing registration form state
 import { useState } from 'react'
 // This line imports the shared API client for backend requests
@@ -13,7 +13,12 @@ import RotatingLogo3D from '../components/RotatingLogo3D'
 // This part shows the registration page
 function Register() {
     // This part keeps all registration form fields in one state object
-    const [form, setForm] = useState({ name: '', email: '', password: '' }) // This line stores signup form values
+    const [form, setForm] = useState({
+        name: '',
+        email: '',
+        password: '',
+        role: 'user'
+    }) // This line stores signup form values
     // This part creates a function used to redirect after registration
     const navigate = useNavigate()
 
@@ -30,7 +35,8 @@ function Register() {
             setForm({
                 name: fieldValue,
                 email: form.email,
-                password: form.password
+                password: form.password,
+                role: form.role
             })
         }
 
@@ -39,7 +45,8 @@ function Register() {
             setForm({
                 name: form.name,
                 email: fieldValue,
-                password: form.password
+                password: form.password,
+                role: form.role
             })
         }
 
@@ -48,7 +55,18 @@ function Register() {
             setForm({
                 name: form.name,
                 email: form.email,
-                password: fieldValue
+                password: fieldValue,
+                role: form.role
+            })
+        }
+
+        // This part updates role
+        if (fieldName === 'role') {
+            setForm({
+                name: form.name,
+                email: form.email,
+                password: form.password,
+                role: fieldValue
             })
         }
     }
@@ -88,11 +106,11 @@ function Register() {
                     </div>
 
                     {/* This is the small label above the main heading */}
-                    <p className="eyebrow">Citizen Signup</p>
+                    <p className="eyebrow">Account Signup</p>
                     {/* This is the main page heading */}
                     <h1>Create Your Account</h1>
                     {/* Short description for new users */}
-                    <p>Set up access to submit complaints and track investigation updates.</p>
+                    <p>Select your role and set up access to the investigation portal.</p>
                 </div>
 
                 {/* Registration form sends account data to the backend */}
@@ -106,7 +124,7 @@ function Register() {
                             {/* This line shows the portal title */}
                             <strong>CrimeDesk Portal</strong>
                             {/* This line shows the portal purpose */}
-                            <small>Citizen account setup</small>
+                            <small>Account setup</small>
                         </div>
                     </div>
 
@@ -145,6 +163,20 @@ function Register() {
                         />
                     </label>
 
+                    {/* This is the role selection field */}
+                    <label>
+                        Role
+                        {/* This keeps the role selected by the user */}
+                        <select name="role" value={form.role} onChange={handleChange}>
+                            {/* This option creates a normal citizen account */}
+                            <option value="user">User</option>
+                            {/* This option creates a police account */}
+                            <option value="police">Police</option>
+                            {/* This option creates an admin account */}
+                            <option value="admin">Admin</option>
+                        </select>
+                    </label>
+
                     {/* This submits the registration form */}
                     <button className="btn btn-primary" type="submit">Register</button>
 
@@ -154,7 +186,7 @@ function Register() {
                     </p>
 
                     {/* This line shows a short security note */}
-                    <p className="auth-security-note">Your account is used for complaint and case updates</p>
+                    <p className="auth-security-note">Your selected role controls which pages you can open</p>
                 </form>
             </section>
         </main>
