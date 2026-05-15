@@ -17,6 +17,36 @@ The project helps users, police officers, and admin users manage crime investiga
 
 This project is made for learning, college project work, and demonstration purpose.
 
+## Live Project Links
+
+The project is deployed online.
+
+Frontend live website:
+
+```text
+https://ai-crime-investigation-system.vercel.app
+```
+
+Backend live API:
+
+```text
+https://ai-crime-investigation-backend.onrender.com
+```
+
+Backend check URL:
+
+```text
+https://ai-crime-investigation-backend.onrender.com
+```
+
+If the backend is working, it shows:
+
+```text
+AI Based Crime Investigation System API is running
+```
+
+Important: these links are for this deployed project. If you deploy your own copy, your links will be different.
+
 ## Main Goal
 
 The main goal of this project is to make crime investigation work easier, faster, and more organized.
@@ -84,6 +114,16 @@ The project has login and register features.
 
 It uses JWT authentication. After login, the backend sends a token. The frontend stores this token and sends it with API requests.
 
+The register page has role selection.
+
+Available roles during registration:
+
+1. User
+2. Police
+3. Admin
+
+For a real production system, admin and police accounts should be created only by a trusted admin. In this college demo project, role selection is kept on the register page so all roles can be tested easily.
+
 ### 2. Role Based Access
 
 Every user has a role:
@@ -110,7 +150,13 @@ Users can setup OTP using an authenticator app like:
 2. Microsoft Authenticator
 3. Authy
 
-After setup, the user must enter OTP during login.
+After entering email and password, the OTP page shows:
+
+1. QR code
+2. Secret key
+3. OTP input field
+
+The user should scan the QR code in an authenticator app. Then the user should enter the 6 digit OTP code shown in the app.
 
 ### 5. Complaint System
 
@@ -507,6 +553,7 @@ JWT_SECRET=your_jwt_secret
 GROQ_API_KEY=your_groq_api_key
 GROQ_MODEL=llama-3.1-8b-instant
 GOOGLE_CLIENT_ID=your_google_login_client_id
+CORS_ORIGIN=http://localhost:5173
 ```
 
 ### Frontend `.env` Example
@@ -514,6 +561,8 @@ GOOGLE_CLIENT_ID=your_google_login_client_id
 ```env
 VITE_GOOGLE_CLIENT_ID=your_google_login_client_id
 VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+VITE_API_BASE_URL=http://localhost:5000/api
+VITE_SOCKET_URL=http://localhost:5000
 ```
 
 ### What Each Key Means
@@ -542,13 +591,61 @@ This is the Groq model name used by the project.
 
 This is used by backend to verify Google login.
 
-7. `VITE_GOOGLE_CLIENT_ID`
+7. `CORS_ORIGIN`
+
+This is the frontend website URL that is allowed to call the backend.
+
+For local use:
+
+```env
+CORS_ORIGIN=http://localhost:5173
+```
+
+For deployed Vercel frontend:
+
+```env
+CORS_ORIGIN=https://ai-crime-investigation-system.vercel.app
+```
+
+8. `VITE_GOOGLE_CLIENT_ID`
 
 This is used by frontend to show and run Google login.
 
-8. `VITE_GOOGLE_MAPS_API_KEY`
+9. `VITE_GOOGLE_MAPS_API_KEY`
 
 This is used by frontend to show Google Maps on the Crime Map page.
+
+10. `VITE_API_BASE_URL`
+
+This is the backend API URL used by frontend.
+
+For local use:
+
+```env
+VITE_API_BASE_URL=http://localhost:5000/api
+```
+
+For deployed Render backend:
+
+```env
+VITE_API_BASE_URL=https://ai-crime-investigation-backend.onrender.com/api
+```
+
+11. `VITE_SOCKET_URL`
+
+This is the backend socket URL used for live chat and live updates.
+
+For local use:
+
+```env
+VITE_SOCKET_URL=http://localhost:5000
+```
+
+For deployed Render backend:
+
+```env
+VITE_SOCKET_URL=https://ai-crime-investigation-backend.onrender.com
+```
 
 ## How To Create Required API Keys
 
@@ -793,6 +890,7 @@ JWT_SECRET=your_jwt_secret
 GROQ_API_KEY=your_groq_api_key
 GROQ_MODEL=llama-3.1-8b-instant
 GOOGLE_CLIENT_ID=your_google_login_client_id
+CORS_ORIGIN=http://localhost:5173
 ```
 
 Start backend server:
@@ -828,6 +926,8 @@ Example:
 ```env
 VITE_GOOGLE_CLIENT_ID=your_google_login_client_id
 VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+VITE_API_BASE_URL=http://localhost:5000/api
+VITE_SOCKET_URL=http://localhost:5000
 ```
 
 Start frontend server:
@@ -898,6 +998,32 @@ VITE_GOOGLE_CLIENT_ID=your_google_login_client_id
 
 ## How To Use The Project
 
+You can use this project in two ways:
+
+1. Use the live deployed website.
+2. Run the project locally on your computer.
+
+### Use The Live Website
+
+Open this link:
+
+```text
+https://ai-crime-investigation-system.vercel.app
+```
+
+Then follow these steps:
+
+1. Click Create account if you are a new user.
+2. Enter full name, email, password, and select role.
+3. Login with the same email and password.
+4. If OTP page opens, scan the QR code using an authenticator app.
+5. Enter the 6 digit OTP code.
+6. After login, use the sidebar to open pages based on your role.
+
+Use a new email when testing registration. If the email already exists, registration will fail.
+
+### Run The Project Locally
+
 ### Step 1: Start Backend
 
 ```bash
@@ -924,6 +1050,14 @@ http://localhost:5173
 
 Create an account or login with an existing account.
 
+During registration, select one role:
+
+1. User
+2. Police
+3. Admin
+
+After login, if the OTP screen opens, scan the QR code first. Then enter the 6 digit OTP code from your authenticator app.
+
 ### Step 5: Use Features Based On Role
 
 Use the sidebar to open:
@@ -944,6 +1078,224 @@ Use the sidebar to open:
 14. Users
 
 Some pages are visible only for selected roles.
+
+## Deployment Guide Using Vercel, Render, And MongoDB Atlas
+
+This is the easiest deployment method for this project.
+
+Use:
+
+1. Vercel for frontend
+2. Render for backend
+3. MongoDB Atlas for online database
+
+MongoDB Compass is only for local database viewing. It cannot host your database online. For a live website, use MongoDB Atlas or another online MongoDB server.
+
+### Step 1: Create MongoDB Atlas Database
+
+1. Open MongoDB Atlas.
+2. Create a free project.
+3. Create a free cluster.
+4. Create database user and password.
+5. Add network access:
+
+```text
+0.0.0.0/0
+```
+
+6. Copy MongoDB connection string.
+
+Example:
+
+```text
+mongodb+srv://username:password@cluster0.xxxxx.mongodb.net/crime_investigation_system?retryWrites=true&w=majority&appName=Cluster0
+```
+
+Do not put this connection string in GitHub.
+
+### Step 2: Deploy Backend On Render
+
+Create a new Render Web Service.
+
+Use these settings:
+
+```text
+Root Directory: backend
+Runtime: Node
+Build Command: npm install
+Start Command: npm start
+Plan: Free
+```
+
+Add these Render environment variables:
+
+```env
+MONGO_URI=your_mongodb_atlas_connection_string
+JWT_SECRET=your_secret_text
+GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL=llama-3.1-8b-instant
+GOOGLE_CLIENT_ID=your_google_login_client_id
+CORS_ORIGIN=https://your-vercel-frontend-url
+```
+
+Do not add `PORT` in Render. Render sets the port automatically.
+
+After deployment, backend URL will look like this:
+
+```text
+https://ai-crime-investigation-backend.onrender.com
+```
+
+Open the backend URL. If it works, it will show:
+
+```text
+AI Based Crime Investigation System API is running
+```
+
+### Step 3: Deploy Frontend On Vercel
+
+Create a new Vercel project from the main GitHub repository.
+
+Use these settings:
+
+```text
+Root Directory: frontend
+Framework Preset: Vite or Other
+Install Command: npm install
+Build Command: npm run build
+Output Directory: dist
+```
+
+Add these Vercel environment variables:
+
+```env
+VITE_API_BASE_URL=https://your-render-backend-url/api
+VITE_SOCKET_URL=https://your-render-backend-url
+VITE_GOOGLE_CLIENT_ID=your_google_login_client_id
+VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+```
+
+For this project deployment, the values are:
+
+```env
+VITE_API_BASE_URL=https://ai-crime-investigation-backend.onrender.com/api
+VITE_SOCKET_URL=https://ai-crime-investigation-backend.onrender.com
+```
+
+After deployment, frontend URL will look like this:
+
+```text
+https://ai-crime-investigation-system.vercel.app
+```
+
+### Step 4: Update Render CORS
+
+After Vercel gives the frontend link, go back to Render.
+
+Open backend service, then open Environment.
+
+Set:
+
+```env
+CORS_ORIGIN=https://your-vercel-frontend-url
+```
+
+For this project deployment:
+
+```env
+CORS_ORIGIN=https://ai-crime-investigation-system.vercel.app
+```
+
+Then click:
+
+```text
+Save, rebuild, and deploy
+```
+
+### Step 5: Update Google Cloud Settings
+
+For Google Login, add this in Google OAuth allowed JavaScript origins:
+
+```text
+https://your-vercel-frontend-url
+```
+
+For this project deployment:
+
+```text
+https://ai-crime-investigation-system.vercel.app
+```
+
+For Google Maps key restrictions, add:
+
+```text
+https://your-vercel-frontend-url/*
+```
+
+For this project deployment:
+
+```text
+https://ai-crime-investigation-system.vercel.app/*
+```
+
+### Step 6: Test Live Project
+
+Test these pages:
+
+1. Register page
+2. Login page
+3. OTP QR page
+4. Dashboard
+5. Create complaint
+6. Create FIR
+7. Cases
+8. Crime Map
+9. Reports
+10. Chat
+
+### Common Deployment Problems
+
+1. Register says failed
+
+Check Render `CORS_ORIGIN`. It must match your Vercel frontend URL.
+
+2. Frontend cannot call backend
+
+Check Vercel `VITE_API_BASE_URL`. It must end with `/api`.
+
+Correct:
+
+```env
+VITE_API_BASE_URL=https://ai-crime-investigation-backend.onrender.com/api
+```
+
+3. Live chat does not update
+
+Check Vercel `VITE_SOCKET_URL`.
+
+Correct:
+
+```env
+VITE_SOCKET_URL=https://ai-crime-investigation-backend.onrender.com
+```
+
+4. Google Maps is blank
+
+Check `VITE_GOOGLE_MAPS_API_KEY`. Also check that Maps JavaScript API is enabled in Google Cloud.
+
+5. Vercel shows 404 on `/register`
+
+Make sure `frontend/vercel.json` exists. It should contain React route fallback rules.
+
+6. MongoDB connection fails on Render
+
+Check MongoDB Atlas Network Access. For Render free deployment, allow:
+
+```text
+0.0.0.0/0
+```
+
+Also check that username and password in `MONGO_URI` are correct.
 
 ## Deployment Guide Using AWS EC2 And S3
 
@@ -1293,13 +1645,14 @@ Longitude: 88.3525
 
 ### Check Two-Factor Authentication
 
-1. Login.
-2. Go to 2FA Setup.
-3. Generate secret.
-4. Setup authenticator app.
-5. Enter OTP.
-6. Enable 2FA.
-7. Next login will ask for OTP.
+1. Open the login page.
+2. Enter email and password.
+3. The OTP page will open.
+4. Scan the QR code using Google Authenticator, Microsoft Authenticator, or Authy.
+5. If QR scanning does not work, copy the secret key into the authenticator app.
+6. Enter the 6 digit OTP code.
+7. Click Verify OTP.
+8. After correct OTP, the dashboard will open.
 
 ## Important Environment Notes
 
