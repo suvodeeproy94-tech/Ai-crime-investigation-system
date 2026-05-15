@@ -1093,17 +1093,90 @@ MongoDB Compass is only for local database viewing. It cannot host your database
 
 ### Step 1: Create MongoDB Atlas Database
 
-1. Open MongoDB Atlas.
-2. Create a free project.
-3. Create a free cluster.
-4. Create database user and password.
-5. Add network access:
+First create an online MongoDB database.
+
+1. Open this website:
+
+```text
+https://cloud.mongodb.com
+```
+
+2. Login with your MongoDB account.
+3. If MongoDB asks to create an organization, create it.
+4. Click Create Project.
+5. Enter project name:
+
+```text
+Crime Investigation System
+```
+
+6. Do not add extra members if this is your personal project.
+7. Click Create Project.
+8. On Project Overview, click Create or Create Cluster.
+9. Choose the free plan.
+
+Use:
+
+```text
+Free or M0
+```
+
+10. Choose provider:
+
+```text
+AWS
+```
+
+11. Choose region near you.
+
+Example:
+
+```text
+Mumbai
+```
+
+If Mumbai is not available, choose Singapore.
+
+12. Keep cluster name as:
+
+```text
+Cluster0
+```
+
+13. Click Create Deployment or Create Cluster.
+14. MongoDB will ask you to create a database user.
+15. Enter a username.
+
+Example:
+
+```text
+crimeuser
+```
+
+16. Enter a strong password.
+17. Save username and password in a safe place.
+18. Click Create Database User.
+19. MongoDB will ask for network access.
+20. For local testing, click Add My Current IP Address.
+21. For Render deployment, add this IP access:
 
 ```text
 0.0.0.0/0
 ```
 
-6. Copy MongoDB connection string.
+22. Click Confirm.
+23. Wait until the cluster is ready.
+24. Click Connect.
+25. Select Drivers.
+26. Select Driver:
+
+```text
+Node.js
+```
+
+27. Copy the connection string.
+28. Replace `<db_password>` with your real database password.
+29. Add the database name after `.net/`.
 
 Example:
 
@@ -1113,19 +1186,49 @@ mongodb+srv://username:password@cluster0.xxxxx.mongodb.net/crime_investigation_s
 
 Do not put this connection string in GitHub.
 
+Use this connection string later in Render as:
+
+```env
+MONGO_URI=your_final_mongodb_connection_string
+```
+
 ### Step 2: Deploy Backend On Render
 
-Create a new Render Web Service.
+Now deploy the backend API.
+
+1. Open this website:
+
+```text
+https://dashboard.render.com
+```
+
+2. Login with GitHub.
+3. Click New.
+4. Click Web Service.
+5. Select your GitHub repository.
+
+For this project:
+
+```text
+Ai-crime-investigation-system
+```
+
+6. If Render asks permission, allow access to the repository.
+7. Fill the service settings.
 
 Use these settings:
 
 ```text
+Name: ai-crime-investigation-backend
 Root Directory: backend
 Runtime: Node
 Build Command: npm install
 Start Command: npm start
 Plan: Free
 ```
+
+8. Scroll to Environment Variables.
+9. Add the variables one by one.
 
 Add these Render environment variables:
 
@@ -1138,7 +1241,23 @@ GOOGLE_CLIENT_ID=your_google_login_client_id
 CORS_ORIGIN=https://your-vercel-frontend-url
 ```
 
-Do not add `PORT` in Render. Render sets the port automatically.
+For first deployment, if frontend is not ready yet, you can use:
+
+```env
+CORS_ORIGIN=http://localhost:5173
+```
+
+After Vercel frontend is ready, change it to your Vercel link.
+
+Important:
+
+1. Do not add `PORT` in Render.
+2. Do not upload backend `.env` to GitHub.
+3. Render environment variables replace your backend `.env` file online.
+
+10. Click Create Web Service.
+11. Wait for Render to install packages and start the backend.
+12. When deployment finishes, Render will show a backend URL.
 
 After deployment, backend URL will look like this:
 
@@ -1152,9 +1271,60 @@ Open the backend URL. If it works, it will show:
 AI Based Crime Investigation System API is running
 ```
 
+If the backend does not start:
+
+1. Open Render service.
+2. Click Logs.
+3. Read the red error.
+4. Check `MONGO_URI`, `JWT_SECRET`, `GROQ_API_KEY`, and `GOOGLE_CLIENT_ID`.
+
+To redeploy backend after code changes:
+
+1. Push your code to GitHub.
+2. Open Render backend service.
+3. Click Manual Deploy.
+4. Click Deploy latest commit.
+5. Wait until it becomes live.
+
 ### Step 3: Deploy Frontend On Vercel
 
-Create a new Vercel project from the main GitHub repository.
+Now deploy the React frontend.
+
+1. Open this website:
+
+```text
+https://vercel.com
+```
+
+2. Login with GitHub.
+3. Click Add New.
+4. Click Project.
+5. Select your GitHub repository.
+
+For this project:
+
+```text
+Ai-crime-investigation-system
+```
+
+6. Make sure you are not selecting a separate wrong frontend-only repo.
+7. Set the project name.
+
+Example:
+
+```text
+ai-crime-investigation-system
+```
+
+8. Set Root Directory.
+
+Use:
+
+```text
+frontend
+```
+
+9. Open Build and Output Settings.
 
 Use these settings:
 
@@ -1165,6 +1335,9 @@ Install Command: npm install
 Build Command: npm run build
 Output Directory: dist
 ```
+
+10. Open Environment Variables.
+11. Add all frontend variables.
 
 Add these Vercel environment variables:
 
@@ -1182,17 +1355,53 @@ VITE_API_BASE_URL=https://ai-crime-investigation-backend.onrender.com/api
 VITE_SOCKET_URL=https://ai-crime-investigation-backend.onrender.com
 ```
 
+Important:
+
+1. `VITE_API_BASE_URL` must end with `/api`.
+2. `VITE_SOCKET_URL` must not end with `/api`.
+3. Do not add `MONGO_URI` in Vercel.
+4. Do not add `JWT_SECRET` in Vercel.
+5. Do not add `GROQ_API_KEY` in Vercel.
+
+12. Click Deploy.
+13. Wait until Vercel shows Ready.
+14. Copy the frontend domain.
+
 After deployment, frontend URL will look like this:
 
 ```text
 https://ai-crime-investigation-system.vercel.app
 ```
 
+To redeploy frontend after code changes:
+
+1. Push your code to GitHub.
+2. Open Vercel project.
+3. Click Deployments.
+4. Wait for automatic deployment.
+5. If it does not deploy, click the three dots on latest deployment.
+6. Click Redeploy.
+7. If Vercel asks about cache, choose do not use cache.
+
 ### Step 4: Update Render CORS
 
 After Vercel gives the frontend link, go back to Render.
 
-Open backend service, then open Environment.
+1. Open:
+
+```text
+https://dashboard.render.com
+```
+
+2. Click your backend service.
+3. Click Environment.
+4. Find:
+
+```env
+CORS_ORIGIN
+```
+
+5. Set it to your Vercel frontend URL.
 
 Set:
 
@@ -1206,15 +1415,30 @@ For this project deployment:
 CORS_ORIGIN=https://ai-crime-investigation-system.vercel.app
 ```
 
-Then click:
+6. Click:
 
 ```text
 Save, rebuild, and deploy
 ```
 
+7. Wait until Render becomes live again.
+8. Open the frontend website and test register/login.
+
 ### Step 5: Update Google Cloud Settings
 
-For Google Login, add this in Google OAuth allowed JavaScript origins:
+Google Login and Google Maps must allow your live frontend URL.
+
+1. Open this website:
+
+```text
+https://console.cloud.google.com
+```
+
+2. Select your Google Cloud project.
+3. Go to APIs and Services.
+4. Open Credentials.
+5. Click your OAuth Client ID.
+6. Under Authorized JavaScript origins, add your Vercel frontend URL.
 
 ```text
 https://your-vercel-frontend-url
@@ -1226,7 +1450,10 @@ For this project deployment:
 https://ai-crime-investigation-system.vercel.app
 ```
 
-For Google Maps key restrictions, add:
+7. Save the OAuth Client ID.
+8. Go back to Credentials.
+9. Click your Google Maps API key.
+10. Under Website restrictions, add:
 
 ```text
 https://your-vercel-frontend-url/*
@@ -1237,6 +1464,14 @@ For this project deployment:
 ```text
 https://ai-crime-investigation-system.vercel.app/*
 ```
+
+11. Under API restrictions, allow:
+
+```text
+Maps JavaScript API
+```
+
+12. Save the API key.
 
 ### Step 6: Test Live Project
 
@@ -1325,7 +1560,32 @@ For simple deployment, use this setup:
 5. Map: Google Maps key in frontend `.env`
 6. Login: Google Client ID in both frontend and backend `.env`
 
+### AWS Deployment Overview
+
+You will do the AWS deployment in this order:
+
+1. Create or use an online MongoDB database.
+2. Create an EC2 server for the backend.
+3. Install Node.js and PM2 on EC2.
+4. Upload backend code to EC2 using GitHub.
+5. Start backend with PM2.
+6. Build frontend on your computer.
+7. Upload frontend `dist` files to S3.
+8. Enable S3 static website hosting.
+9. Update Google settings.
+10. Test the live website.
+
 ### Step 1: Prepare Backend For EC2
+
+Before you start the backend on EC2, prepare the backend environment values.
+
+You need:
+
+1. MongoDB Atlas connection string or MongoDB connection string from your EC2 MongoDB server
+2. JWT secret
+3. Groq API key
+4. Google Client ID
+5. Frontend S3 website URL
 
 On EC2, backend `.env` should look like this:
 
@@ -1349,7 +1609,9 @@ CORS_ORIGIN=https://yourdomain.com
 
 ### Step 2: Prepare Frontend For S3
 
-Before building frontend, set `frontend/.env` like this:
+Before building frontend, set `frontend/.env` on your local computer.
+
+Use your EC2 backend URL in frontend `.env`.
 
 ```env
 VITE_GOOGLE_CLIENT_ID=your_google_login_client_id
@@ -1365,15 +1627,60 @@ VITE_API_BASE_URL=https://api.yourdomain.com/api
 VITE_SOCKET_URL=https://api.yourdomain.com
 ```
 
+Important:
+
+1. Build the frontend only after setting the correct backend URL.
+2. If you change `.env`, run `npm run build` again.
+3. S3 will use the already built files from the `dist` folder.
+
 ### Step 3: Create AWS EC2 Server
 
-1. Open AWS Console.
-2. Go to EC2.
-3. Launch instance.
-4. Select Ubuntu.
-5. Select free tier instance if this is only for demo.
-6. Create or select key pair.
-7. Allow these inbound ports in security group:
+Now create the backend server.
+
+1. Open this website:
+
+```text
+https://console.aws.amazon.com
+```
+
+2. Login to AWS.
+3. In the search box at the top, search:
+
+```text
+EC2
+```
+
+4. Open EC2.
+5. Click Instances.
+6. Click Launch instances.
+7. Enter a server name.
+
+Example:
+
+```text
+crime-backend-server
+```
+
+8. In Application and OS Images, select Ubuntu.
+9. In Instance type, choose a free tier option.
+
+Example:
+
+```text
+t2.micro
+```
+
+or:
+
+```text
+t3.micro
+```
+
+10. In Key pair, create or choose a key pair.
+11. Download the `.pem` key file if AWS creates a new one.
+12. Keep this key file safe. You need it to connect to EC2.
+13. In Network settings, allow SSH.
+14. Add security group rules for these ports:
 
 ```text
 22   SSH
@@ -1382,19 +1689,56 @@ VITE_SOCKET_URL=https://api.yourdomain.com
 5000 Backend API for simple testing
 ```
 
+For SSH source, you can choose My IP for better safety.
+
+For HTTP, HTTPS, and port `5000`, use:
+
+```text
+0.0.0.0/0
+```
+
+15. Click Launch instance.
+16. Wait until Instance state becomes Running.
+17. Select the instance.
+18. Copy the Public IPv4 address.
+
 For a beginner demo, port `5000` is enough to test backend.
 
 For a better production setup, use Nginx on port `80` or `443`.
 
 ### Step 4: Install Node.js On EC2
 
-Connect to EC2 using SSH.
+Now connect to the EC2 server.
+
+Easy browser method:
+
+1. Open AWS EC2.
+2. Click Instances.
+3. Select your instance.
+4. Click Connect.
+5. Choose EC2 Instance Connect.
+6. Click Connect.
+
+If EC2 Instance Connect does not work, use SSH from your terminal with the `.pem` file.
+
+After connecting to EC2, run these commands:
 
 Then run:
 
 ```bash
 sudo apt update
 sudo apt install -y nodejs npm git
+node -v
+npm -v
+```
+
+If Node.js version is too old, install Node.js from NodeSource.
+
+Example:
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
 node -v
 npm -v
 ```
@@ -1409,11 +1753,21 @@ PM2 keeps backend running after you close the terminal.
 
 ### Step 5: Upload Backend Code To EC2
 
-You can use GitHub:
+Use GitHub to get your code on EC2.
+
+In EC2 terminal, run:
 
 ```bash
 git clone your_github_repo_url
 cd your_repo_folder/backend
+npm install
+```
+
+Example:
+
+```bash
+git clone https://github.com/your-username/Ai-crime-investigation-system.git
+cd Ai-crime-investigation-system/backend
 npm install
 ```
 
@@ -1425,11 +1779,36 @@ nano .env
 
 Paste production backend values.
 
+Example:
+
+```env
+PORT=5000
+MONGO_URI=your_online_mongodb_connection_string
+JWT_SECRET=your_strong_secret
+GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL=llama-3.1-8b-instant
+GOOGLE_CLIENT_ID=your_google_login_client_id
+CORS_ORIGIN=http://your-s3-website-url
+```
+
+Save the file:
+
+1. Press `Ctrl + O`
+2. Press Enter
+3. Press `Ctrl + X`
+
 Start backend:
 
 ```bash
 pm2 start server.js --name crime-backend
 pm2 save
+```
+
+Check PM2:
+
+```bash
+pm2 status
+pm2 logs crime-backend
 ```
 
 Check backend:
@@ -1444,9 +1823,16 @@ You should see:
 AI Based Crime Investigation System API is running
 ```
 
+If the backend does not open:
+
+1. Check EC2 security group.
+2. Make sure port `5000` is allowed.
+3. Check `pm2 logs crime-backend`.
+4. Check backend `.env`.
+
 ### Step 6: Build Frontend
 
-On your local computer, go to frontend:
+On your local computer, go to the frontend folder:
 
 ```bash
 cd frontend
@@ -1458,33 +1844,93 @@ This creates a `dist` folder.
 
 The `dist` folder is the final frontend website.
 
+Do not upload the full frontend source folder to S3.
+
+Upload only the files inside:
+
+```text
+frontend/dist
+```
+
 ### Step 7: Host Frontend On AWS S3
 
-1. Open AWS Console.
-2. Go to S3.
-3. Create bucket.
-4. Use a unique bucket name.
-5. Turn off Block all public access only if you want public website hosting.
-6. Upload all files from `frontend/dist`.
-7. Go to bucket Properties.
-8. Enable Static website hosting.
-9. Set index document:
+Now upload the built frontend to S3.
+
+1. Open this website:
+
+```text
+https://console.aws.amazon.com
+```
+
+2. In the top search box, search:
+
+```text
+S3
+```
+
+3. Open S3.
+4. Click Create bucket.
+5. Enter a unique bucket name.
+
+Example:
+
+```text
+crime-investigation-frontend-demo
+```
+
+6. Choose the same AWS region if possible.
+7. Under Object Ownership, keep ACLs disabled.
+8. Under Block Public Access, uncheck Block all public access only if this is a public demo website.
+9. AWS will show a warning. Confirm that you understand the bucket will be public.
+10. Click Create bucket.
+11. Open the new bucket.
+12. Click Upload.
+13. Click Add files.
+14. Select all files inside `frontend/dist`.
+15. Click Add folder if there is an `assets` folder inside `dist`.
+16. Upload everything from `frontend/dist`.
+17. After upload, open the bucket Properties tab.
+18. Scroll to Static website hosting.
+19. Click Edit.
+20. Select Enable.
+21. Set Hosting type:
+
+```text
+Host a static website
+```
+
+22. Set index document:
 
 ```text
 index.html
 ```
 
-10. Set error document:
+23. Set error document:
 
 ```text
 index.html
 ```
 
-Using `index.html` as error document helps React routes work after refresh.
+24. Click Save changes.
+25. Copy the Bucket website endpoint.
+
+It will look like this:
+
+```text
+http://your-bucket-name.s3-website-region.amazonaws.com
+```
+
+Using `index.html` as error document helps React routes like `/register` work after refresh.
 
 ### Step 8: Add S3 Bucket Policy
 
 Use this only for public demo hosting.
+
+1. Open your S3 bucket.
+2. Click Permissions.
+3. Scroll to Bucket policy.
+4. Click Edit.
+5. Paste the policy below.
 
 Replace `your-bucket-name` with your bucket name.
 
@@ -1503,11 +1949,24 @@ Replace `your-bucket-name` with your bucket name.
 }
 ```
 
-After this, open the S3 website endpoint.
+6. Click Save changes.
+7. Open the S3 website endpoint in your browser.
 
 ### Step 9: Update Google Settings After Deployment
 
-In Google Cloud, update Google Login allowed origins.
+After AWS deployment, update Google settings.
+
+1. Open this website:
+
+```text
+https://console.cloud.google.com
+```
+
+2. Select your Google Cloud project.
+3. Go to APIs and Services.
+4. Open Credentials.
+5. Click your OAuth Client ID.
+6. Add your S3 website endpoint in Authorized JavaScript origins.
 
 Add frontend website URL:
 
@@ -1515,7 +1974,10 @@ Add frontend website URL:
 http://your-s3-website-url
 ```
 
-Also update Google Maps API key website restrictions.
+7. Save.
+8. Go back to Credentials.
+9. Open your Google Maps API key.
+10. Add your S3 website endpoint in website restrictions.
 
 Add:
 
@@ -1525,7 +1987,39 @@ http://your-s3-website-url/*
 
 If you use your own domain, add your domain instead.
 
-### Step 10: Test Live Project
+### Step 10: Update Backend CORS For S3
+
+After S3 website is ready, update backend `.env` on EC2.
+
+1. Connect to EC2.
+2. Go to backend folder:
+
+```bash
+cd Ai-crime-investigation-system/backend
+```
+
+3. Open `.env`:
+
+```bash
+nano .env
+```
+
+4. Set `CORS_ORIGIN` to your S3 website endpoint.
+
+Example:
+
+```env
+CORS_ORIGIN=http://your-bucket-name.s3-website-region.amazonaws.com
+```
+
+5. Save the file.
+6. Restart backend:
+
+```bash
+pm2 restart crime-backend
+```
+
+### Step 11: Test Live Project
 
 After deployment, test these:
 
