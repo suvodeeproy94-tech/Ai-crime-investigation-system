@@ -200,29 +200,29 @@ function Login() {
 
     // This part replaces normal login fields with OTP fields when 2FA is needed
     if (twoFactorRequired) {
-        formTitle = 'Enter OTP Code'
+        formTitle = 'Scan QR And Enter OTP'
         submitHandler = handleOtpSubmit
         formFields = (
             <>
-                <p>Please enter the 6 digit code shown in your authenticator app.</p>
+                <p>Scan the QR code in your authenticator app. Then enter the 6 digit code shown in the app.</p>
 
                 {hasQrCode && (
                     <div className="qr-box">
-                        <p>Scan this QR code with Google Authenticator</p>
+                        <p>Scan this QR code first</p>
                         <img className="qr-image" src={setupData.qrCodeDataUrl} alt="Authenticator QR code" />
                     </div>
                 )}
 
                 {hasSecret && (
                     <div className="auth-note">
-                        <p>Use this secret in your authenticator app:</p>
+                        <p>If QR scan does not work, use this secret:</p>
                         <code>{setupData.secret}</code>
                     </div>
                 )}
 
                 {hasSetupLink && (
                     <div className="auth-note">
-                        <p>Open this link in your authenticator app:</p>
+                        <p>You can also open this setup link:</p>
                         <a href={setupData.otpauthUrl} target="_blank" rel="noreferrer">Set up authenticator</a>
                     </div>
                 )}

@@ -10,6 +10,37 @@ import { Link, useNavigate } from 'react-router-dom'
 // This line imports the 3D rotating logo component
 import RotatingLogo3D from '../components/RotatingLogo3D'
 
+// This function checks the form before sending it to the backend
+function checkRegisterForm(form) {
+    // This check makes sure the full name is not empty
+    if (!form.name.trim()) {
+        return 'Please enter full name'
+    }
+
+    // This check makes sure the email is not empty
+    if (!form.email.trim()) {
+        return 'Please enter email'
+    }
+
+    // This check makes sure the email has a basic email shape
+    if (!form.email.includes('@')) {
+        return 'Please enter a valid email'
+    }
+
+    // This check makes sure the password is not empty
+    if (!form.password) {
+        return 'Please enter password'
+    }
+
+    // This check asks for a simple minimum password length
+    if (form.password.length < 4) {
+        return 'Password must be at least 4 characters'
+    }
+
+    // This line means the form is valid
+    return ''
+}
+
 // This part shows the registration page
 function Register() {
     // This part keeps all registration form fields in one state object
@@ -76,9 +107,26 @@ function Register() {
         // Prevents the browser from refreshing on form submit
         event.preventDefault()
 
+        // This line checks the form before calling the backend
+        const formError = checkRegisterForm(form)
+
+        // This check stops signup when a field is missing
+        if (formError) {
+            alert(formError)
+            return
+        }
+
+        // This object sends clean signup data to the backend
+        const registerData = {
+            name: form.name.trim(),
+            email: form.email.trim(),
+            password: form.password,
+            role: form.role
+        }
+
         try {
             // This part creates the account through the backend API
-            await API.post('/users/register', form)
+            await API.post('/users/register', registerData)
             // This line removes old login token after signup
             localStorage.removeItem('token')
             // This line removes old saved user after signup
@@ -140,14 +188,14 @@ function Register() {
                     <label>
                         Full Name
                         {/* This keeps the full name entered by the user */}
-                        <input name="name" value={form.name} onChange={handleChange} placeholder="Enter full name" />
+                        <input name="name" value={form.name} onChange={handleChange} placeholder="Enter full name" required />
                     </label>
 
                     {/* This is the email input field */}
                     <label>
                         Email
                         {/* This keeps the email entered by the user */}
-                        <input name="email" type="email" value={form.email} onChange={handleChange} placeholder="Enter email" />
+                        <input name="email" type="email" value={form.email} onChange={handleChange} placeholder="Enter email" required />
                     </label>
 
                     {/* This is the password input field */}
@@ -160,6 +208,7 @@ function Register() {
                             value={form.password}
                             onChange={handleChange}
                             placeholder="Create password"
+                            required
                         />
                     </label>
 
@@ -167,7 +216,7 @@ function Register() {
                     <label>
                         Role
                         {/* This keeps the role selected by the user */}
-                        <select name="role" value={form.role} onChange={handleChange}>
+                        <select name="role" value={form.role} onChange={handleChange} required>
                             {/* This option creates a normal citizen account */}
                             <option value="user">User</option>
                             {/* This option creates a police account */}

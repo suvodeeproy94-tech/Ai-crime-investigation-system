@@ -122,14 +122,43 @@ exports.registerUser = async (req, res) => {
     // This line reads registration fields from the request body
     const { name, email, password, role } = req.body // This line reads signup fields
 
+    // These lines remove extra spaces from name and email
+    const cleanName = (name || '').trim()
+    const cleanEmail = (email || '').trim().toLowerCase()
+
     // This line gets the selected role in a safe and simple way
     const selectedRole = getSignupRole(role)
+
+    // This check stops signup when name is missing
+    if (!cleanName) {
+        return res.status(400).json({ message: 'Please enter full name' })
+    }
+
+    // This check stops signup when email is missing
+    if (!cleanEmail) {
+        return res.status(400).json({ message: 'Please enter email' })
+    }
+
+    // This check stops signup when email does not look valid
+    if (!cleanEmail.includes('@')) {
+        return res.status(400).json({ message: 'Please enter a valid email' })
+    }
+
+    // This check stops signup when password is missing
+    if (!password) {
+        return res.status(400).json({ message: 'Please enter password' })
+    }
+
+    // This check keeps password length simple for the project
+    if (password.length < 4) {
+        return res.status(400).json({ message: 'Password must be at least 4 characters' })
+    }
 
     // This part handles registration errors with a clean API response
     try {
 
         // This line checks whether an account already exists with the same email
-        let user = await User.findOne({ email })
+        let user = await User.findOne({ email: cleanEmail })
 
         // This part stops signup when the email is already used
         if (user) {
@@ -145,9 +174,9 @@ exports.registerUser = async (req, res) => {
         // This part creates the user document with the selected role
         user = new User({
             // This part keeps the user's display name
-            name,
+            name: cleanName,
             // This part keeps the user's email address
-            email,
+            email: cleanEmail,
             // This part keeps only the hashed password
             password: hashedPassword,
             // This line saves the selected role
@@ -156,7 +185,7 @@ exports.registerUser = async (req, res) => {
 
         // If OTP support is available, generate a secret now for mandatory 2FA
         if (speakeasy) {
-            const secret = speakeasy.generateSecret({ name: `CrimeInvestigation:${email}` })
+            const secret = speakeasy.generateSecret({ name: `CrimeInvestigation:${cleanEmail}` })
             user.twoFactorSecret = secret.base32
         }
 
@@ -168,7 +197,7 @@ exports.registerUser = async (req, res) => {
 
     } catch (error) {
         // This part sends a server error when registration fails
-        res.status(500).json({ error: error.message })
+        res.status(500).json({ message: 'Registration failed. Please try again.' })
     }
 }
 
@@ -216,10 +245,8 @@ exports.loginUser = async (req, res) => {
                 message: 'Enter OTP to complete login'
             }
 
-            // Send the QR code only when the user is setting up OTP for the first time
-            if (!user.twoFactorEnabled) {
-                responseData.setupData = await buildTwoFactorSetupData(user)
-            }
+            // This line sends QR setup data so the user can scan it before entering OTP
+            responseData.setupData = await buildTwoFactorSetupData(user)
 
             return res.json(responseData)
         }
@@ -541,10 +568,8 @@ exports.googleLogin = async (req, res) => {
                 message: 'Enter OTP to complete login'
             }
 
-            // Send the QR code only when the user is setting up OTP for the first time
-            if (!user.twoFactorEnabled) {
-                responseData.setupData = await buildTwoFactorSetupData(user)
-            }
+            // This line sends QR setup data so the user can scan it before entering OTP
+            responseData.setupData = await buildTwoFactorSetupData(user)
 
             return res.json(responseData)
         }
